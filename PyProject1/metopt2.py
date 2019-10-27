@@ -151,7 +151,6 @@ cancer = sklearn.datasets.load_breast_cancer()
 X = normalize(cancer['data'])
 labels = cancer['target']
 X, X_test, labels, labels_test = train_test_split(X, labels, test_size=0.2, shuffle=False)
-
 # print(check_gradient(function, gradient, X, 1))
 # print(check_gessian(gradient, gessian, X, 1))
 # print(gradient_descent(function, gradient, lambda f: golden_search(f), w, 0.00001))
@@ -184,9 +183,6 @@ graph(oracle[5:], accuracy[5:], title='3.1')
 graph(iterations[5:], grad_ratio[5:], title='1.2')
 graph(times[5:], grad_ratio[5:], title='2.2')
 graph(oracle[5:], grad_ratio[5:], title='3.2')
-
-
-
 
 # print(*golden_search(polinome, -2, 2))
 # minimization = opt.minimize_scalar(polinome)

@@ -50,7 +50,7 @@ ax.plot(x, y)
 ax.set(xlabel='k', ylabel='оценка СКО для равномерного',
        title=str(r) + ' выборок по ' + str(n) + " экземпляров, параметр = "+str(teta))
 ax.grid()
-fig.savefig("randomCKO.png")
+# fig.savefig("randomCKO.png")
 plt.show()
 
 
@@ -64,5 +64,5 @@ ax.plot(x, y)
 ax.set(xlabel='k', ylabel='оценка СКО для экспоненциального',
        title=str(r) + ' выборок по ' + str(n) + " экземпляров, параметр = "+str(teta))
 ax.grid()
-fig.savefig("exponentialCKO.png")
+# fig.savefig("exponentialCKO.png")
 plt.show()
