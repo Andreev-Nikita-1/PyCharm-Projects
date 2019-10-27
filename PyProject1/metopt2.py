@@ -185,6 +185,9 @@ graph(iterations[5:], grad_ratio[5:], title='1.2')
 graph(times[5:], grad_ratio[5:], title='2.2')
 graph(oracle[5:], grad_ratio[5:], title='3.2')
 
+
+
+
 # print(*golden_search(polinome, -2, 2))
 # minimization = opt.minimize_scalar(polinome)
 # print(minimization['x'], minimization['fun'])
