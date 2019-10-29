@@ -4,24 +4,50 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy
 import scipy.optimize as opt
+import scipy.sparse
 import sklearn.datasets
 from sklearn.model_selection import train_test_split
 
 
-def sigma(w, x):
-    return 1 / (1 + np.exp(-np.dot(w, x)))
+# def sigma(w, x):
+#     return 1 / (1 + np.exp(-np.dot(w, x)))
+
+# grad_time = 0
+
+# def function(w, X, labels):
+#     return -1 / len(X) * np.sum([np.log(sigma(w, l * x)) for x, l in zip(X, labels)])
+#
+# def gradient(w, X, labels):
+#     global grad_time
+#     start = time.time()
+#     sum = -1 / len(X) * np.sum([l * x * sigma(w, -l * x) for x, l in zip(X, labels)], axis=0)
+#     grad_time += (time.time() - start)
+#     return sum
+
+
+def sigmoid(x):
+    return 1 / (1 + np.exp(-x))
 
 
 def function(w, X, labels):
-    return -1 / len(X) * np.sum([np.log(sigma(w, l * x)) for x, l in zip(X, labels)])
+    Xw = X.dot(w)
+    return -1 / X.shape[0] * np.sum([np.log(sigmoid(l * xw)) for xw, l in zip(Xw, labels)])
 
 
 def gradient(w, X, labels):
-    return -1 / len(X) * np.sum([l * x * sigma(w, -l * x) for x, l in zip(X, labels)], axis=0)
+    Xw = X.dot(w)
+    coeffs = np.array([l * sigmoid(-l * xw) for xw, l in zip(Xw, labels)])
+    if isinstance(X, scipy.sparse.csr_matrix):
+        X1 = X.multiply(coeffs.reshape(-1, 1))
+    else:
+        X1 = coeffs.reshape(-1, 1) * X
+    return -1 / X.shape[0] * np.array(X1.sum(axis=0)).reshape(X.shape[1])
 
 
 def hessian(w, X, labels):
-    return 1 / len(X) * np.sum([np.outer(x, x) * sigma(w, x) * sigma(w, -x) for x in X], axis=0)
+    Xw = X.dot(w)
+    coeffs = np.array([sigmoid(xw) * sigmoid(-xw) for xw in Xw])
+    return 1 / X.shape[0] * np.sum([np.outer(x, x) * coeffs[i] for i, x in enumerate(X.todense())], axis=0)
 
 
 def der(fun, point, epsilon=np.sqrt(sys.float_info.epsilon)):
@@ -217,8 +243,13 @@ def info(w_res, iterations, oracle, times, accuracies, grad_ratios, w_true):
 cancer = sklearn.datasets.load_breast_cancer()
 # X = np.random.random((100, 3))
 # labels = np.random.randint(0, 2, (100))
-X = normalize(cancer['data'])
-labels = 2 * cancer['target'] - 1
+w0 = 0.5 * np.random.random(119)
+a1a = sklearn.datasets.load_svmlight_file('data/a1a.txt')
+X = np.array(a1a[0].todense())
+# X = a1a[0]
+labels = a1a[1]
+# X = normalize(cancer['data'])
+# labels = 2 * cancer['target'] - 1
 X, X_test, labels, labels_test = train_test_split(X, labels, test_size=0.2)
 labels_test = (labels_test + 1) / 2
 # print(check_gradient(function, gradient, 1, X.shape[1], args=[X, labels]))
@@ -229,32 +260,34 @@ labels_test = (labels_test + 1) / 2
 #                         , 0.11892809, 0.44075745, 0.44719281, 0.65085188, 0.09238662, 0.46245895
 #                         , 0.20133476, 0.82547662, 0.843942, 0.87022425, 0.1425544, 0.16122998, 0]
 #                     )
-w0 = 0.5 * np.random.random(31)
 
-w_true = opt.minimize(function, w0, args=(X, labels), jac=gradient)['x']
+# w_true = opt.minimize(function, w0, args=(X, labels), jac=gradient)['x']
 # w_true = np.array([302.5925661, -21.69111231, 207.55842006, -411.28849642, -32.24866798
 #                       , -4.31827468, -34.71080755, -73.71085179, 38.02308458, 49.91720216
 #                       , 66.57753268, 15.52855102, 27.0831392, -312.8996407, 24.89967549
 #                       , -34.07416117, 155.51644952, -106.31990291, 29.20772399, 65.4730172
 #                       , 82.76286878, -19.74667188, 15.59046806, -451.20587395, 13.58897497
 #                       , 79.36381994, -51.81633846, 19.5727145, -65.71161459, -102.40926345])
-print(np.mean(np.array([round(sigma(w_true, x)) for x in X_test]) == labels_test))
+# print(np.mean(np.array([round(sigma(w_true, x)) for x in X_test]) == labels_test))
 start = time.time()
 w_res, iterations, oracles, times, accuracies, grad_ratios = optimization_task(function,
                                                                                gradient, w0,
-                                                                               method='newton',
+                                                                               method='gradient descent',
                                                                                hess=hessian,
                                                                                args=[X, labels],
-                                                                               one_dim_search='golden',
+                                                                               one_dim_search='armiho',
                                                                                # search_kwargs=dict(
                                                                                # [('c', 0.5), ('x0', 10)]),
                                                                                # [('maxiter', 10)]),
                                                                                epsilon=0.00001,
-                                                                               true_min=function(w_true, X, labels))
+                                                                               # true_min=function(w_true, X, labels)
+                                                                               )
 
-print(np.mean(np.array([round(sigma(w_res, x)) for x in X_test]) == labels_test))
+Xw = X_test.dot(w_res)
+print(np.mean(np.array([round(sigmoid(p)) for p in Xw]) == labels_test))
 print(np.linalg.norm(w_res))
-info(w_res, iterations, oracles, times, accuracies, grad_ratios, w_true)
+# print('grad time', grad_time)
+info(w_res, iterations, oracles, times, accuracies, grad_ratios, 0)
 # graph(iterations[5:], accuracy[5:], title='1.1')
 # graph(times[5:], accuracy[5:], title='2.1')
 # graph(oracle[5:], accuracy[5:], title='3.1')
