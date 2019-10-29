@@ -12,17 +12,16 @@ def sigma(w, x):
     return 1 / (1 + np.exp(-np.dot(w, x)))
 
 
-def function(w, X):
-    return -1 / len(X) * np.sum([np.log(sigma(w, (2 * l - 1) * x)) for x, l in zip(X, labels)])
+def function(w, X, labels):
+    return -1 / len(X) * np.sum([np.log(sigma(w, l * x)) for x, l in zip(X, labels)])
 
 
-def gradient(w, X):
-    return -1 / len(X) * np.sum([x * (l - sigma(w, x)) for x, l in zip(X, labels)], axis=0)
+def gradient(w, X, labels):
+    return -1 / len(X) * np.sum([l * x * sigma(w, -l * x) for x, l in zip(X, labels)], axis=0)
 
 
-def hessian(w, X):
-    sigmas = np.array([sigma(w, x) for x in X])
-    return -1 / len(X) * np.sum([np.outer(x, x) * ((sigmas[i] - 1) * sigmas[i]) for i, x in enumerate(X)], axis=0)
+def hessian(w, X, labels):
+    return 1 / len(X) * np.sum([np.outer(x, x) * sigma(w, x) * sigma(w, -x) for x in X], axis=0)
 
 
 def der(fun, point, epsilon=np.sqrt(sys.float_info.epsilon)):
@@ -219,11 +218,11 @@ cancer = sklearn.datasets.load_breast_cancer()
 # X = np.random.random((100, 3))
 # labels = np.random.randint(0, 2, (100))
 X = normalize(cancer['data'])
-labels = cancer['target']
+labels = 2 * cancer['target'] - 1
 X, X_test, labels, labels_test = train_test_split(X, labels, test_size=0.2)
-# print(check_gradient(function, gradient, 1, X.shape[1], args=[X]))
-# print(check_hessian(gradient, hessian, 1, X.shape[1], args=[X]))
-
+labels_test = (labels_test + 1) / 2
+# print(check_gradient(function, gradient, 1, X.shape[1], args=[X, labels]))
+# print(check_hessian(gradient, hessian, 1, X.shape[1], args=[X, labels]))
 # w0 = 0.5*np.array([0.52658227, 0.37548235, 0.27720264, 0.82988368, 0.63424511, 0.34688084
 #                         , 0.05520993, 0.15297424, 0.00745145, 0.08471717, 0.5714892, 0.62753455
 #                         , 0.43193636, 0.28142003, 0.91129921, 0.75423357, 0.93720731, 0.73454387
@@ -232,7 +231,7 @@ X, X_test, labels, labels_test = train_test_split(X, labels, test_size=0.2)
 #                     )
 w0 = 0.5 * np.random.random(31)
 
-w_true = opt.minimize(function, w0, args=X, jac=gradient)['x']
+w_true = opt.minimize(function, w0, args=(X, labels), jac=gradient)['x']
 # w_true = np.array([302.5925661, -21.69111231, 207.55842006, -411.28849642, -32.24866798
 #                       , -4.31827468, -34.71080755, -73.71085179, 38.02308458, 49.91720216
 #                       , 66.57753268, 15.52855102, 27.0831392, -312.8996407, 24.89967549
@@ -243,15 +242,15 @@ print(np.mean(np.array([round(sigma(w_true, x)) for x in X_test]) == labels_test
 start = time.time()
 w_res, iterations, oracles, times, accuracies, grad_ratios = optimization_task(function,
                                                                                gradient, w0,
-                                                                               method='gradient descent',
+                                                                               method='newton',
                                                                                hess=hessian,
-                                                                               args=[X],
+                                                                               args=[X, labels],
                                                                                one_dim_search='golden',
                                                                                # search_kwargs=dict(
                                                                                # [('c', 0.5), ('x0', 10)]),
                                                                                # [('maxiter', 10)]),
                                                                                epsilon=0.00001,
-                                                                               true_min=function(w_true, X))
+                                                                               true_min=function(w_true, X, labels))
 
 print(np.mean(np.array([round(sigma(w_res, x)) for x in X_test]) == labels_test))
 print(np.linalg.norm(w_res))
