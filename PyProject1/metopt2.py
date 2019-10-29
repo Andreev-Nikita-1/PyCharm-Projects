@@ -8,7 +8,6 @@ import scipy.sparse
 import sklearn.datasets
 from sklearn.model_selection import train_test_split
 
-
 # def sigma(w, x):
 #     return 1 / (1 + np.exp(-np.dot(w, x)))
 
@@ -24,9 +23,17 @@ from sklearn.model_selection import train_test_split
 #     grad_time += (time.time() - start)
 #     return sum
 
+sigmoids = []
+arguments = []
+
 
 def sigmoid(x):
-    return 1 / (1 + np.exp(-x))
+    global sigmoids
+    global arguments
+    arguments.append(x)
+    ans = 1 / (1 + np.exp(-x))
+    sigmoids.append(ans)
+    return ans
 
 
 def function(w, X, labels):
@@ -58,23 +65,25 @@ def check_gradient(fun, grad, R, dim, args=(), diff_eps=np.sqrt(sys.float_info.e
     w = np.random.random(dim)
     w = (2 * w - 1) * R
     dw = np.eye(dim)
-    difs = [np.abs((np.dot(grad(w, *args), dw_i) - der(lambda t: fun(w + t * dw_i, *args), 0, diff_eps)) / np.dot(
-        grad(w, *args), dw_i)) for dw_i in dw]
-    return np.average(difs)
+    g = grad(w, *args)
+    norm = np.dot(g, g)
+    difs = [np.abs((np.dot(g, dw_i) - der(lambda t: fun(w + t * dw_i, *args), 0, diff_eps))) for dw_i in dw]
+    return np.average(difs) / norm
 
 
 def check_hessian(grad, hess, R, dim, args=(), diff_eps=np.sqrt(sys.float_info.epsilon)):
     w = np.random.random(dim)
     w = (2 * w - 1) * R
     dw = np.eye(dim)
-    g = hess(w, *args)
+    h = hess(w, *args)
+    norm = np.dot(h.flatten(), h.flatten())
 
     def xAy(A, x, y):
         return np.dot(x, np.dot(A, y))
 
-    difs = [np.abs((xAy(g, dw1, dw2) - der(lambda t: np.dot(grad(w + t * dw1, *args), dw2), 0, diff_eps))
-                   / xAy(g, dw1, dw2)) for dw1 in dw for dw2 in dw]
-    return np.average(difs)
+    difs = [np.abs((xAy(h, dw1, dw2) - der(lambda t: np.dot(grad(w + t * dw1, *args), dw2), 0, diff_eps))) for dw1 in dw
+            for dw2 in dw]
+    return np.average(difs) / norm
 
 
 def golden_search_bounded(fun, a0, b0, eps=0.0001, args=()):
@@ -240,26 +249,40 @@ def info(w_res, iterations, oracle, times, accuracies, grad_ratios, w_true):
     print('grad_ratio =', grad_ratios[-1])
 
 
-cancer = sklearn.datasets.load_breast_cancer()
-# X = np.random.random((100, 3))
-# labels = np.random.randint(0, 2, (100))
-w0 = 0.5 * np.random.random(119)
+def random_dataset(alpha, beta):
+    xs = np.random.normal(size=(1000, alpha.shape[0]))
+    labels = np.array([np.sign(np.dot(alpha, x) + beta) for x in xs])
+    return xs, labels
+
+
 a1a = sklearn.datasets.load_svmlight_file('data/a1a.txt')
-X = np.array(a1a[0].todense())
-# X = a1a[0]
-labels = a1a[1]
-# X = normalize(cancer['data'])
-# labels = 2 * cancer['target'] - 1
+X = a1a[0]
+dummy = scipy.sparse.coo_matrix([[1] for i in range(X.shape[0])])
+X_a1a = scipy.sparse.hstack([X, dummy])
+labels_a1a = a1a[1]
+
+breast_cancer = sklearn.datasets.load_svmlight_file('data/breast-cancer_scale.txt')
+X = breast_cancer[0]
+dummy = scipy.sparse.csr_matrix([[1] for i in range(X.shape[0])])
+X_cancer = scipy.sparse.hstack([X, dummy])
+labels_cancer = breast_cancer[1]-3
+
+alpha = 2 * np.random.random(10) - 1
+beta = 2 * np.random.random() - 1
+X, labels_rand = random_dataset(alpha, beta)
+dummy = scipy.sparse.csr_matrix([[1] for i in range(X.shape[0])])
+X_rand = scipy.sparse.hstack([X, dummy])
+
+X = X_cancer
+labels = labels_cancer
 X, X_test, labels, labels_test = train_test_split(X, labels, test_size=0.2)
 labels_test = (labels_test + 1) / 2
-# print(check_gradient(function, gradient, 1, X.shape[1], args=[X, labels]))
-# print(check_hessian(gradient, hessian, 1, X.shape[1], args=[X, labels]))
-# w0 = 0.5*np.array([0.52658227, 0.37548235, 0.27720264, 0.82988368, 0.63424511, 0.34688084
-#                         , 0.05520993, 0.15297424, 0.00745145, 0.08471717, 0.5714892, 0.62753455
-#                         , 0.43193636, 0.28142003, 0.91129921, 0.75423357, 0.93720731, 0.73454387
-#                         , 0.11892809, 0.44075745, 0.44719281, 0.65085188, 0.09238662, 0.46245895
-#                         , 0.20133476, 0.82547662, 0.843942, 0.87022425, 0.1425544, 0.16122998, 0]
-#                     )
+
+print(check_gradient(function, gradient, 2, X.shape[1], args=[X, labels]))
+print(check_hessian(gradient, hessian, 2, X.shape[1], args=[X, labels]))
+exit(0)
+
+w0 = 2 * np.random.random(X.shape[1]) - 1
 
 # w_true = opt.minimize(function, w0, args=(X, labels), jac=gradient)['x']
 # w_true = np.array([302.5925661, -21.69111231, 207.55842006, -411.28849642, -32.24866798
@@ -286,8 +309,11 @@ w_res, iterations, oracles, times, accuracies, grad_ratios = optimization_task(f
 Xw = X_test.dot(w_res)
 print(np.mean(np.array([round(sigmoid(p)) for p in Xw]) == labels_test))
 print(np.linalg.norm(w_res))
+
 # print('grad time', grad_time)
 info(w_res, iterations, oracles, times, accuracies, grad_ratios, 0)
+
+exit(0)
 # graph(iterations[5:], accuracy[5:], title='1.1')
 # graph(times[5:], accuracy[5:], title='2.1')
 # graph(oracle[5:], accuracy[5:], title='3.1')
