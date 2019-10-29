@@ -20,7 +20,7 @@ def gradient(w, X):
     return -1 / len(X) * np.sum([x * (l - sigma(w, x)) for x, l in zip(X, labels)], axis=0)
 
 
-def gessian(w, X):
+def hessian(w, X):
     sigmas = np.array([sigma(w, x) for x in X])
     return -1 / len(X) * np.sum([np.outer(x, x) * ((sigmas[i] - 1) * sigmas[i]) for i, x in enumerate(X)], axis=0)
 
@@ -38,11 +38,11 @@ def check_gradient(fun, grad, R, dim, args=(), diff_eps=np.sqrt(sys.float_info.e
     return np.average(difs)
 
 
-def check_gessian(grad, gess, R, dim, args=(), diff_eps=np.sqrt(sys.float_info.epsilon)):
+def check_hessian(grad, hess, R, dim, args=(), diff_eps=np.sqrt(sys.float_info.epsilon)):
     w = np.random.random(dim)
     w = (2 * w - 1) * R
     dw = np.eye(dim)
-    g = gess(w, *args)
+    g = hess(w, *args)
 
     def xAy(A, x, y):
         return np.dot(x, np.dot(A, y))
@@ -74,18 +74,12 @@ def golden_search_bounded(fun, a0, b0, eps=0.0001, args=()):
     return solution[0], solution[2]
 
 
-def golden_search(fun, a=0, b=1, eps=0.0001, args=()):
-    x, oracle = golden_search_bounded(fun, a, b, eps, args)
-    d = b - a
-
-    if np.abs(x - a) < eps:
-        ans = golden_search(fun, a - 10 * d, a, eps, args)
-        return ans[0], ans[1] + oracle
-    if np.abs(x - b) < eps:
-        ans = golden_search(fun, b, b + 10 * d, eps, args)
-        return ans[0], ans[1] + oracle
-
-    return x, oracle
+def golden_search(fun, eps=0.0001, args=()):
+    a, _, b, _, _, _, onumber = opt.bracket(fun, args=args)
+    if b < a:
+        a, b = b, a
+    gsb = golden_search_bounded(fun, a, b, eps=eps, args=args)
+    return gsb[0], gsb[1] + onumber
 
 
 def armiho(fun, c=0.5, x0=1, df0=None):
@@ -121,7 +115,7 @@ def solve(G, d):
     return scipy.linalg.solve_triangular(np.transpose(L), Ltx, lower=False)
 
 
-def optimization_task(fun, grad, start, method='gradient descent', gess=None, one_dim_search=None, args=(),
+def optimization_task(fun, grad, start, method='gradient descent', hess=None, one_dim_search=None, args=(),
                       search_kwargs=dict([]), epsilon=0.0001, true_min=0):
     iterations, oracles, times, accuracies, grad_ratios = [], [], [], [], []
     start_time, k, oracle = time.time(), 0, 0
@@ -146,7 +140,7 @@ def optimization_task(fun, grad, start, method='gradient descent', gess=None, on
         if method == 'gradient descent':
             d = -gk
         elif method == 'newton':
-            d = -solve(gess(x, *args), gk)
+            d = -solve(hess(x, *args), gk)
         oracle += 1
         ratio = np.dot(gk, gk) / np.dot(g0, g0)
         iterations.append(k)
@@ -177,7 +171,6 @@ def optimization_task(fun, grad, start, method='gradient descent', gess=None, on
             solution = opt.line_search(fun, grad, x, d, **search_kwargs, gfk=gk, old_fval=fk, args=args)
             alpha = solution[0]
             oracle += solution[1]
-
         elif one_dim_search == 'nester':
             L, oracle_counter = nester(f, fk, gk, L0=max(L / 2, L0))
             alpha = 1 / L
@@ -193,9 +186,15 @@ def polinome(x):
 
 
 def normalize(array):
+    def add1(v):
+        l = v.tolist()
+        l.append(1)
+        return np.array(l)
+
     mins = np.array([min(array[:, k]) for k in range(len(array[0]))])
     maxs = np.array([max(array[:, k]) for k in range(len(array[0]))])
-    array = 0.5 * np.array([(vector - mins) / (maxs - mins) for vector in array])
+    array = np.array([(vector - mins) / (maxs - mins) for vector in array])
+    array = np.array([add1(v) for v in array])
     return array
 
 
@@ -221,33 +220,33 @@ cancer = sklearn.datasets.load_breast_cancer()
 # labels = np.random.randint(0, 2, (100))
 X = normalize(cancer['data'])
 labels = cancer['target']
-X, X_test, labels, labels_test = train_test_split(X, labels, test_size=0.2, shuffle=False)
+X, X_test, labels, labels_test = train_test_split(X, labels, test_size=0.2)
 # print(check_gradient(function, gradient, 1, X.shape[1], args=[X]))
-# print(check_gessian(gradient, gessian, 1, X.shape[1], args=[X]))
+# print(check_hessian(gradient, hessian, 1, X.shape[1], args=[X]))
 
-w0 = np.array([0.52658227, 0.37548235, 0.27720264, 0.82988368, 0.63424511, 0.34688084
-                  , 0.05520993, 0.15297424, 0.00745145, 0.08471717, 0.5714892, 0.62753455
-                  , 0.43193636, 0.28142003, 0.91129921, 0.75423357, 0.93720731, 0.73454387
-                  , 0.11892809, 0.44075745, 0.44719281, 0.65085188, 0.09238662, 0.46245895
-                  , 0.20133476, 0.82547662, 0.843942, 0.87022425, 0.1425544, 0.16122998]
-              )
-# w0 = np.random.random(30)
+# w0 = 0.5*np.array([0.52658227, 0.37548235, 0.27720264, 0.82988368, 0.63424511, 0.34688084
+#                         , 0.05520993, 0.15297424, 0.00745145, 0.08471717, 0.5714892, 0.62753455
+#                         , 0.43193636, 0.28142003, 0.91129921, 0.75423357, 0.93720731, 0.73454387
+#                         , 0.11892809, 0.44075745, 0.44719281, 0.65085188, 0.09238662, 0.46245895
+#                         , 0.20133476, 0.82547662, 0.843942, 0.87022425, 0.1425544, 0.16122998, 0]
+#                     )
+w0 = 0.5 * np.random.random(31)
 
-
-w_true = np.array([302.5925661, -21.69111231, 207.55842006, -411.28849642, -32.24866798
-                      , -4.31827468, -34.71080755, -73.71085179, 38.02308458, 49.91720216
-                      , 66.57753268, 15.52855102, 27.0831392, -312.8996407, 24.89967549
-                      , -34.07416117, 155.51644952, -106.31990291, 29.20772399, 65.4730172
-                      , 82.76286878, -19.74667188, 15.59046806, -451.20587395, 13.58897497
-                      , 79.36381994, -51.81633846, 19.5727145, -65.71161459, -102.40926345])
+w_true = opt.minimize(function, w0, args=X, jac=gradient)['x']
+# w_true = np.array([302.5925661, -21.69111231, 207.55842006, -411.28849642, -32.24866798
+#                       , -4.31827468, -34.71080755, -73.71085179, 38.02308458, 49.91720216
+#                       , 66.57753268, 15.52855102, 27.0831392, -312.8996407, 24.89967549
+#                       , -34.07416117, 155.51644952, -106.31990291, 29.20772399, 65.4730172
+#                       , 82.76286878, -19.74667188, 15.59046806, -451.20587395, 13.58897497
+#                       , 79.36381994, -51.81633846, 19.5727145, -65.71161459, -102.40926345])
 print(np.mean(np.array([round(sigma(w_true, x)) for x in X_test]) == labels_test))
 start = time.time()
 w_res, iterations, oracles, times, accuracies, grad_ratios = optimization_task(function,
                                                                                gradient, w0,
-                                                                               method='newton',
-                                                                               gess=gessian,
+                                                                               method='gradient descent',
+                                                                               hess=hessian,
                                                                                args=[X],
-                                                                               one_dim_search='nester',
+                                                                               one_dim_search='golden',
                                                                                # search_kwargs=dict(
                                                                                # [('c', 0.5), ('x0', 10)]),
                                                                                # [('maxiter', 10)]),
