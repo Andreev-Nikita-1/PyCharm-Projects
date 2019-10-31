@@ -8,6 +8,7 @@ import scipy.sparse
 import sklearn.datasets
 from sklearn.model_selection import train_test_split
 
+
 # def sigma(w, x):
 #     return 1 / (1 + np.exp(-np.dot(w, x)))
 
@@ -23,8 +24,31 @@ from sklearn.model_selection import train_test_split
 #     grad_time += (time.time() - start)
 #     return sum
 
-sigmoids = []
-arguments = []
+
+def oracle(w, X, labels, outers=None, order=0):
+    Xw = X.dot(w)
+    sigmoids = [sigmoid(l * xw) for xw, l in zip(Xw, labels)]
+    f = -1 / X.shape[0] * np.sum([np.log(s) for s in sigmoids])
+
+    if order == 0:
+        return f
+
+    grad_coeffs = np.array([l * (1 - s) for s, l in zip(sigmoids, labels)])
+    X1 = X.multiply(grad_coeffs.reshape(-1, 1))
+    g = -1 / X.shape[0] * np.array(X1.sum(axis=0)).reshape(X.shape[1])
+
+    if order == 1:
+        return f, g, 0
+
+    hess_coeffs = np.array([s * (1 - s) for s in sigmoids])
+    if outers is None:
+        h = 1 / X.shape[0] * np.sum([np.outer(x, x) * hess_coeffs[i] for i, x in enumerate(X.todense())], axis=0)
+    else:
+        outers1 = outers.multiply(grad_coeffs.reshape(-1, 1))
+        h = 1 / X.shape[0] * np.array(outers1.sum(axis=0)).reshape((X.shape[1], X.shape[1]))
+
+    if order == 2:
+        return f, g, h
 
 
 def sigmoid(x):
@@ -149,18 +173,23 @@ def solve(G, d):
     return scipy.linalg.solve_triangular(np.transpose(L), Ltx, lower=False)
 
 
-def optimization_task(fun, grad, start, method='gradient descent', hess=None, one_dim_search=None, args=(),
+def optimization_task(oracle, start, method='gradient descent', one_dim_search=None, args=(),
                       search_kwargs=dict([]), epsilon=0.0001, true_min=0):
     iterations, oracles, times, accuracies, grad_ratios = [], [], [], [], []
-    start_time, k, oracle = time.time(), 0, 0
+    start_time, k, onumber = time.time(), 0, 0
     x = start
-    g0 = grad(x, *args)
-    oracle += 1
 
-    if one_dim_search is None and method == 'gradient descent':
-        one_dim_search = 'brent'
-    elif one_dim_search is None and method == 'newton':
-        one_dim_search = 'unit step'
+    if method == 'gradient descent':
+        ord = 1
+        if one_dim_search is None:
+            one_dim_search = 'brent'
+    elif method == 'newton':
+        ord = 2
+        if one_dim_search is None:
+            one_dim_search = 'unit step'
+
+    f0, g0, _ = oracle(x, *args, order=1)
+    onumber += 1
 
     if one_dim_search == 'nester':
         L, L0 = 2, 0
@@ -169,17 +198,16 @@ def optimization_task(fun, grad, start, method='gradient descent', hess=None, on
             L = L0
 
     while True:
-        gk = grad(x, *args)
-        fk = fun(x, *args)
+        fk, gk, hk = oracle(x, *args, order=ord)
         if method == 'gradient descent':
             d = -gk
         elif method == 'newton':
-            d = -solve(hess(x, *args), gk)
-        oracle += 1
+            d = -solve(hk, gk)
+        onumber += 1
         ratio = np.dot(gk, gk) / np.dot(g0, g0)
         iterations.append(k)
         k += 1
-        oracles.append(oracle)
+        oracles.append(onumber)
         times.append(time.time() - start_time)
         accuracies.append(fk - true_min)
         grad_ratios.append(ratio)
@@ -187,28 +215,31 @@ def optimization_task(fun, grad, start, method='gradient descent', hess=None, on
         if ratio <= epsilon:
             break
 
-        f = lambda alpha: fun(x + d * alpha, *args)
+        fun = lambda alpha: oracle(x + d * alpha, *args)
 
         if one_dim_search == 'unit step':
             alpha = 1
         elif one_dim_search == 'golden':
-            alpha, oracle_counter = golden_search(f, **search_kwargs)
-            oracle += oracle_counter
+            alpha, oracle_counter = golden_search(fun, **search_kwargs)
+            onumber += oracle_counter
         elif one_dim_search == 'brent':
-            solution = opt.minimize_scalar(f)
+            solution = opt.minimize_scalar(fun)
             alpha = solution['x']
-            oracle += solution['nfev']
+            onumber += solution['nfev']
         elif one_dim_search == 'armiho':
-            alpha, oracle_counter = armiho(f, **search_kwargs, df0=np.dot(gk, d))
-            oracle += oracle_counter
+            alpha, oracle_counter = armiho(fun, **search_kwargs, df0=np.dot(gk, d))
+            onumber += oracle_counter
         elif one_dim_search == 'wolf':
-            solution = opt.line_search(fun, grad, x, d, **search_kwargs, gfk=gk, old_fval=fk, args=args)
+            f_for_wolf = lambda z: oracle(z, *args)
+            g_for_wolf = lambda z: oracle(z, *args, order=1)[1]
+            solution = opt.line_search(f_for_wolf, g_for_wolf, x, d, **search_kwargs, gfk=gk, old_fval=fk)
             alpha = solution[0]
-            oracle += solution[1]
+            #wolf не принимает оракул, вычисляющий одновременно функцию и градиент, хотя мог бы, так что я учёл только вызовы функции
+            onumber += solution[1]
         elif one_dim_search == 'nester':
-            L, oracle_counter = nester(f, fk, gk, L0=max(L / 2, L0))
+            L, oracle_counter = nester(fun, fk, gk, L0=max(L / 2, L0))
             alpha = 1 / L
-            oracle += oracle_counter
+            onumber += oracle_counter
 
         x = x + d * alpha
 
@@ -265,7 +296,7 @@ breast_cancer = sklearn.datasets.load_svmlight_file('data/breast-cancer_scale.tx
 X = breast_cancer[0]
 dummy = scipy.sparse.csr_matrix([[1] for i in range(X.shape[0])])
 X_cancer = scipy.sparse.hstack([X, dummy])
-labels_cancer = breast_cancer[1]-3
+labels_cancer = breast_cancer[1] - 3
 
 alpha = 2 * np.random.random(10) - 1
 beta = 2 * np.random.random() - 1
@@ -273,13 +304,55 @@ X, labels_rand = random_dataset(alpha, beta)
 dummy = scipy.sparse.csr_matrix([[1] for i in range(X.shape[0])])
 X_rand = scipy.sparse.hstack([X, dummy])
 
-X = X_cancer
-labels = labels_cancer
+X = X_a1a
+labels = labels_a1a
 X, X_test, labels, labels_test = train_test_split(X, labels, test_size=0.2)
 labels_test = (labels_test + 1) / 2
 
-print(check_gradient(function, gradient, 2, X.shape[1], args=[X, labels]))
-print(check_hessian(gradient, hessian, 2, X.shape[1], args=[X, labels]))
+# print(check_gradient(function, gradient, 2, X.shape[1], args=[X, labels]))
+# print(check_hessian(gradient, hessian, 2, X.shape[1], args=[X, labels]))
+# exit(0)
+
+c2, c3, c5 = [-0.95717287, -0.75630972, 0.72343828], [0.97490814, 0.80688161, 0.05165432, -0.52669906], [0.74540317,
+                                                                                                         -0.50950527,
+                                                                                                         0.96825081,
+                                                                                                         -0.0243777,
+                                                                                                         -0.33768442,
+                                                                                                         -0.03532899]
+
+
+# [-0.95717287 -0.75630972  0.72343828]
+# [ 0.97490814  0.80688161  0.05165432 -0.52669906]
+# [-0.22180215 -0.63603259  0.22768992  0.86681864 -0.32799243 -0.26688286]
+# [ 0.74540317 -0.50950527  0.96825081 -0.0243777  -0.33768442 -0.03532899]
+def pol2(x):
+    return c2[0] + c2[1] * x + x ** 2
+
+
+def pol3(x):
+    return c3[0] + c3[1] * x + c3[2] * x ** 2 + c3[3] * x ** 3
+
+
+def pol5(x):
+    return c5[0] + c5[1] * x + c5[2] * x ** 2 + c5[3] * x ** 3 + c5[4] * x ** 4 + c5[5] * x ** 5
+
+
+def pol(x):
+    return -x ** 2
+
+
+x = np.arange(-1, 1, 0.001)
+
+xs = np.arange(-2, 2, 0.001)
+
+x, fev = golden_search_bounded(pol2, -0.5, 1.5, eps=0.000001)
+
+opt1 = opt.minimize_scalar(pol2, bracket=[-0.5, 1.5], method='brent')
+x1, fev1 = opt1['x'], opt1['nfev']
+
+print('x golden =', x, ', nfev =', fev)
+print('x brent =', x1, ', nfev =', fev1)
+print('pol2(x golden) - pol2(x brent) =', pol2(x) - pol2(x1))
 exit(0)
 
 w0 = 2 * np.random.random(X.shape[1]) - 1
