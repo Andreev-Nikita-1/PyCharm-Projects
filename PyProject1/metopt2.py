@@ -25,6 +25,15 @@ from sklearn.model_selection import train_test_split
 #     return sum
 
 
+def sigmoid(x):
+    # global sigmoids
+    # global arguments
+    # arguments.append(x)
+    ans = 1 / (1 + np.exp(-x))
+    # sigmoids.append(ans)
+    return ans
+
+
 def oracle(w, X, labels, outers=None, order=0):
     Xw = X.dot(w)
     sigmoids = [sigmoid(l * xw) for xw, l in zip(Xw, labels)]
@@ -44,41 +53,23 @@ def oracle(w, X, labels, outers=None, order=0):
     if outers is None:
         h = 1 / X.shape[0] * np.sum([np.outer(x, x) * hess_coeffs[i] for i, x in enumerate(X.todense())], axis=0)
     else:
-        outers1 = outers.multiply(grad_coeffs.reshape(-1, 1))
+        outers1 = outers.multiply(hess_coeffs.reshape(-1, 1))
         h = 1 / X.shape[0] * np.array(outers1.sum(axis=0)).reshape((X.shape[1], X.shape[1]))
 
     if order == 2:
         return f, g, h
 
 
-def sigmoid(x):
-    global sigmoids
-    global arguments
-    arguments.append(x)
-    ans = 1 / (1 + np.exp(-x))
-    sigmoids.append(ans)
-    return ans
-
-
 def function(w, X, labels):
-    Xw = X.dot(w)
-    return -1 / X.shape[0] * np.sum([np.log(sigmoid(l * xw)) for xw, l in zip(Xw, labels)])
+    return oracle(w, X, labels)
 
 
 def gradient(w, X, labels):
-    Xw = X.dot(w)
-    coeffs = np.array([l * sigmoid(-l * xw) for xw, l in zip(Xw, labels)])
-    if isinstance(X, scipy.sparse.csr_matrix):
-        X1 = X.multiply(coeffs.reshape(-1, 1))
-    else:
-        X1 = coeffs.reshape(-1, 1) * X
-    return -1 / X.shape[0] * np.array(X1.sum(axis=0)).reshape(X.shape[1])
+    return oracle(w, X, labels, order=1)[1]
 
 
 def hessian(w, X, labels):
-    Xw = X.dot(w)
-    coeffs = np.array([sigmoid(xw) * sigmoid(-xw) for xw in Xw])
-    return 1 / X.shape[0] * np.sum([np.outer(x, x) * coeffs[i] for i, x in enumerate(X.todense())], axis=0)
+    return oracle(w, X, labels, order=2)[2]
 
 
 def der(fun, point, epsilon=np.sqrt(sys.float_info.epsilon)):
@@ -174,8 +165,8 @@ def solve(G, d):
 
 
 def optimization_task(oracle, start, method='gradient descent', one_dim_search=None, args=(),
-                      search_kwargs=dict([]), epsilon=0.0001, true_min=0):
-    iterations, oracles, times, accuracies, grad_ratios = [], [], [], [], []
+                      search_kwargs=dict([]), epsilon=0.0001):
+    iterations, oracles, times, values, grad_ratios = [], [], [], [], []
     start_time, k, onumber = time.time(), 0, 0
     x = start
 
@@ -209,7 +200,7 @@ def optimization_task(oracle, start, method='gradient descent', one_dim_search=N
         k += 1
         oracles.append(onumber)
         times.append(time.time() - start_time)
-        accuracies.append(fk - true_min)
+        values.append(fk)
         grad_ratios.append(ratio)
 
         if ratio <= epsilon:
@@ -234,7 +225,8 @@ def optimization_task(oracle, start, method='gradient descent', one_dim_search=N
             g_for_wolf = lambda z: oracle(z, *args, order=1)[1]
             solution = opt.line_search(f_for_wolf, g_for_wolf, x, d, **search_kwargs, gfk=gk, old_fval=fk)
             alpha = solution[0]
-            #wolf не принимает оракул, вычисляющий одновременно функцию и градиент, хотя мог бы, так что я учёл только вызовы функции
+            #wolf не принимает оракул, вычисляющий одновременно функцию и градиент, хотя мог бы,
+            #так что я учёл только вызовы функции
             onumber += solution[1]
         elif one_dim_search == 'nester':
             L, oracle_counter = nester(fun, fk, gk, L0=max(L / 2, L0))
@@ -243,7 +235,7 @@ def optimization_task(oracle, start, method='gradient descent', one_dim_search=N
 
         x = x + d * alpha
 
-    return x, iterations, oracles, times, accuracies, grad_ratios
+    return x, iterations, oracles, times, values, grad_ratios
 
 
 def polinome(x):
@@ -286,33 +278,6 @@ def random_dataset(alpha, beta):
     return xs, labels
 
 
-a1a = sklearn.datasets.load_svmlight_file('data/a1a.txt')
-X = a1a[0]
-dummy = scipy.sparse.coo_matrix([[1] for i in range(X.shape[0])])
-X_a1a = scipy.sparse.hstack([X, dummy])
-labels_a1a = a1a[1]
-
-breast_cancer = sklearn.datasets.load_svmlight_file('data/breast-cancer_scale.txt')
-X = breast_cancer[0]
-dummy = scipy.sparse.csr_matrix([[1] for i in range(X.shape[0])])
-X_cancer = scipy.sparse.hstack([X, dummy])
-labels_cancer = breast_cancer[1] - 3
-
-alpha = 2 * np.random.random(10) - 1
-beta = 2 * np.random.random() - 1
-X, labels_rand = random_dataset(alpha, beta)
-dummy = scipy.sparse.csr_matrix([[1] for i in range(X.shape[0])])
-X_rand = scipy.sparse.hstack([X, dummy])
-
-X = X_a1a
-labels = labels_a1a
-X, X_test, labels, labels_test = train_test_split(X, labels, test_size=0.2)
-labels_test = (labels_test + 1) / 2
-
-# print(check_gradient(function, gradient, 2, X.shape[1], args=[X, labels]))
-# print(check_hessian(gradient, hessian, 2, X.shape[1], args=[X, labels]))
-# exit(0)
-
 c2, c3, c5 = [-0.95717287, -0.75630972, 0.72343828], [0.97490814, 0.80688161, 0.05165432, -0.52669906], [0.74540317,
                                                                                                          -0.50950527,
                                                                                                          0.96825081,
@@ -341,20 +306,32 @@ def pol(x):
     return -x ** 2
 
 
-x = np.arange(-1, 1, 0.001)
+a1a = sklearn.datasets.load_svmlight_file('data/a1a.txt')
+X = a1a[0]
+dummy = scipy.sparse.coo_matrix([[1] for i in range(X.shape[0])])
+X_a1a = scipy.sparse.hstack([X, dummy])
+labels_a1a = a1a[1]
 
-xs = np.arange(-2, 2, 0.001)
+breast_cancer = sklearn.datasets.load_svmlight_file('data/breast-cancer_scale.txt')
+X = breast_cancer[0]
+dummy = scipy.sparse.csr_matrix([[1] for i in range(X.shape[0])])
+X_cancer = scipy.sparse.hstack([X, dummy])
+labels_cancer = breast_cancer[1] - 3
 
-x, fev = golden_search_bounded(pol2, -0.5, 1.5, eps=0.000001)
+alpha = 2 * np.random.random(10) - 1
+beta = 2 * np.random.random() - 1
+X, labels_rand = random_dataset(alpha, beta)
+dummy = scipy.sparse.csr_matrix([[1] for i in range(X.shape[0])])
+X_rand = scipy.sparse.hstack([X, dummy])
 
-opt1 = opt.minimize_scalar(pol2, bracket=[-0.5, 1.5], method='brent')
-x1, fev1 = opt1['x'], opt1['nfev']
+X = X_rand
+labels = labels_rand
+X, X_test, labels, labels_test = train_test_split(X, labels, test_size=0.2)
+labels_test = (labels_test + 1) / 2
 
-print('x golden =', x, ', nfev =', fev)
-print('x brent =', x1, ', nfev =', fev1)
-print('pol2(x golden) - pol2(x brent) =', pol2(x) - pol2(x1))
-exit(0)
-
+# print(check_gradient(function, gradient, 2, X.shape[1], args=[X, labels]))
+# print(check_hessian(gradient, hessian, 2, X.shape[1], args=[X, labels]))
+# exit(0)
 w0 = 2 * np.random.random(X.shape[1]) - 1
 
 # w_true = opt.minimize(function, w0, args=(X, labels), jac=gradient)['x']
@@ -365,17 +342,18 @@ w0 = 2 * np.random.random(X.shape[1]) - 1
 #                       , 82.76286878, -19.74667188, 15.59046806, -451.20587395, 13.58897497
 #                       , 79.36381994, -51.81633846, 19.5727145, -65.71161459, -102.40926345])
 # print(np.mean(np.array([round(sigma(w_true, x)) for x in X_test]) == labels_test))
+
+outers = np.array([np.outer(x, x).flatten() for x in X.todense()])
+outers = scipy.sparse.csr_matrix(outers)
 start = time.time()
-w_res, iterations, oracles, times, accuracies, grad_ratios = optimization_task(function,
-                                                                               gradient, w0,
-                                                                               method='gradient descent',
-                                                                               hess=hessian,
-                                                                               args=[X, labels],
-                                                                               one_dim_search='armiho',
+w_res, iterations, oracles, times, accuracies, grad_ratios = optimization_task(oracle, w0,
+                                                                               method='newton',
+                                                                               args=[X, labels, outers],
+                                                                               # one_dim_search='armiho',
                                                                                # search_kwargs=dict(
                                                                                # [('c', 0.5), ('x0', 10)]),
                                                                                # [('maxiter', 10)]),
-                                                                               epsilon=0.00001,
+                                                                               epsilon=0.000000001
                                                                                # true_min=function(w_true, X, labels)
                                                                                )
 
