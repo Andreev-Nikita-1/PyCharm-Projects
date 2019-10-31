@@ -8,7 +8,6 @@ import scipy.sparse
 import sklearn.datasets
 from sklearn.model_selection import train_test_split
 
-
 # def sigma(w, x):
 #     return 1 / (1 + np.exp(-np.dot(w, x)))
 
@@ -24,13 +23,13 @@ from sklearn.model_selection import train_test_split
 #     grad_time += (time.time() - start)
 #     return sum
 
+sigmoids = []
+
 
 def sigmoid(x):
-    # global sigmoids
-    # global arguments
-    # arguments.append(x)
+    global sigmoids
     ans = 1 / (1 + np.exp(-x))
-    # sigmoids.append(ans)
+    sigmoids.append(ans)
     return ans
 
 
@@ -193,7 +192,11 @@ def optimization_task(oracle, start, method='gradient descent', one_dim_search=N
         if method == 'gradient descent':
             d = -gk
         elif method == 'newton':
-            d = -solve(hk, gk)
+            # d = -1*solve(1*hk, gk)
+            det = np.linalg.det(hk)
+            inv = np.linalg.inv(hk)
+            id = np.dot(hk, inv)
+            d = -np.linalg.solve(hk, gk)
         onumber += 1
         ratio = np.dot(gk, gk) / np.dot(g0, g0)
         iterations.append(k)
@@ -225,8 +228,8 @@ def optimization_task(oracle, start, method='gradient descent', one_dim_search=N
             g_for_wolf = lambda z: oracle(z, *args, order=1)[1]
             solution = opt.line_search(f_for_wolf, g_for_wolf, x, d, **search_kwargs, gfk=gk, old_fval=fk)
             alpha = solution[0]
-            #wolf не принимает оракул, вычисляющий одновременно функцию и градиент, хотя мог бы,
-            #так что я учёл только вызовы функции
+            # wolf не принимает оракул, вычисляющий одновременно функцию и градиент, хотя мог бы,
+            # так что я учёл только вызовы функции
             onumber += solution[1]
         elif one_dim_search == 'nester':
             L, oracle_counter = nester(fun, fk, gk, L0=max(L / 2, L0))
@@ -308,6 +311,16 @@ def pol(x):
 
 a1a = sklearn.datasets.load_svmlight_file('data/a1a.txt')
 X = a1a[0]
+
+ind = [X[:, i].sum() for i in range(X.shape[1])]
+offset = 0
+for i in range(X.shape[1]):
+    if ind[i] < 1:
+        X1 = X[:, :(i - offset)]
+        X2 = X[:, (i - offset + 1):]
+        X = scipy.sparse.csr_matrix(scipy.sparse.hstack([X1, X2]))
+        offset += 1
+
 dummy = scipy.sparse.coo_matrix([[1] for i in range(X.shape[0])])
 X_a1a = scipy.sparse.hstack([X, dummy])
 labels_a1a = a1a[1]
@@ -324,15 +337,38 @@ X, labels_rand = random_dataset(alpha, beta)
 dummy = scipy.sparse.csr_matrix([[1] for i in range(X.shape[0])])
 X_rand = scipy.sparse.hstack([X, dummy])
 
-X = X_rand
-labels = labels_rand
+X = X_a1a
+labels = labels_a1a
 X, X_test, labels, labels_test = train_test_split(X, labels, test_size=0.2)
 labels_test = (labels_test + 1) / 2
 
 # print(check_gradient(function, gradient, 2, X.shape[1], args=[X, labels]))
 # print(check_hessian(gradient, hessian, 2, X.shape[1], args=[X, labels]))
 # exit(0)
-w0 = 2 * np.random.random(X.shape[1]) - 1
+w0 = (2 * np.random.random(X.shape[1]) - 1) / 2
+w0 = np.array([-0.22782837460727068, -0.002099347152515363, -0.052140320146127794, -0.4594284595239546, -0.01790283237206236,
+        0.12983476020225782, 0.06740164787764125, -0.3337806990901412, -0.49798962838309047, 0.4967946291937556,
+        0.49947796881425977, -0.09544983781315464, 0.35246564883124387, 0.042102009685434316, 0.03763645270942928,
+        0.4197768498715374, 0.30686599450997565, -0.4088194254895058, 0.01089880869436477, 0.11074770204517437,
+        0.1458653004565148, 0.208446036593952, 0.39441828933005285, -0.04954012997882096, 0.3997810996111618,
+        0.04175069070997195, -0.023943010348827176, 0.32085419857798136, 0.4122901348096297, -0.397076808619621,
+        -0.1534729352348143, -0.4512259695905094, 0.41267803474570397, 0.3266596907739706, -0.03310330731526023,
+        -0.06666283353349534, -0.4210292318993487, -0.25464195106956045, -0.3199620612488415, 0.15099360453960298,
+        -0.3097065319705129, -0.10117963593951385, -0.2717171466026035, -0.4549372062720147, 0.28360061021875826,
+        -0.3888476541559168, -0.35662416622919657, -0.4036774006681443, -0.4744773827292663, 0.2546036767889589,
+        0.055721289208309766, -0.2283143241680874, -0.4584855699794592, 0.1713218241748673, 0.2620666565700679,
+        0.26266780648561083, 0.16764972456129468, -0.10932321124723621, -0.385458180352781, -0.38758038413679197,
+        0.05746032733818762, -0.17022170536498382, -0.05791703393282366, 0.25537223313255, 0.1585573750515611,
+        -0.4101317974960528, 0.17155427728164663, -0.4036483353011906, 0.1815284371776572, 0.4385478415143389,
+        0.3694434971273496, -0.4685203817255963, 0.1998003525238219, -0.303425514916411, 0.37438376301236054,
+        0.3253888620624308, -0.06188391448218611, 0.20414547021540097, -0.4447208289352087, 0.42277682164314456,
+        -0.21885073294917856, -0.4659017885192317, -0.2758820705064968, 0.01997386445525684, 0.14604893492472004,
+        -0.04241116506593112, -0.1251896834662446, -0.16547884227699117, 0.2541978375077075, 0.32854906459749966,
+        0.4677698834363333, 0.2400369797678561, 0.22852724155878756, -0.40874046465244807, 0.45920375858258067,
+        -0.4929731298148555, -0.3484696509284765, 0.25647268563669756, 0.11059872940640958, 0.37811934277832115,
+        -0.48144838637311216, -0.19321482313146854, -0.42316752861272255, -0.1375946350791699, 0.27015633616229107,
+        -0.1920931320570013, 0.08308477880887266, -0.31502981042925304, 0.18725445145397945, -0.08422207550990368,
+        0.03609274593742673, 0.4465238370255289, -0.25264457814011465, -0.23830625860277765])
 
 # w_true = opt.minimize(function, w0, args=(X, labels), jac=gradient)['x']
 # w_true = np.array([302.5925661, -21.69111231, 207.55842006, -411.28849642, -32.24866798
