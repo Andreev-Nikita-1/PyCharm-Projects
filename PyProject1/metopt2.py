@@ -126,6 +126,7 @@ def golden_search(fun, eps=0.0001, args=()):
     a, _, b, _, _, _, onumber = opt.bracket(fun, args=args)
     if b < a:
         a, b = b, a
+    # print(b-a, eps)
     gsb = golden_search_bounded(fun, a, b, eps=eps, args=args)
     return gsb[0], gsb[1] + onumber
 
@@ -157,14 +158,15 @@ def nester(fun, f0, d, L0=1):
     return L, oracle
 
 
-def solve(G, d):
+def cholesky_solve(G, d):
     L = np.linalg.cholesky(G)
     Ltx = scipy.linalg.solve_triangular(L, d, lower=True)
     return scipy.linalg.solve_triangular(np.transpose(L), Ltx, lower=False)
 
 
-def optimization_task(oracle, start, method='gradient descent', one_dim_search=None, args=(),
-                      search_kwargs=dict([]), epsilon=0.0001):
+def optimization_task(oracle, start, method='gradient descent', solver='cholesky', one_dim_search=None, args=(),
+                      search_kwargs=dict([]), epsilon=0, max_iter=float('inf'), max_time=float('inf'),
+                      max_oracle=float('inf')):
     iterations, oracles, times, values, grad_ratios = [], [], [], [], []
     start_time, k, onumber = time.time(), 0, 0
     x = start
@@ -192,11 +194,10 @@ def optimization_task(oracle, start, method='gradient descent', one_dim_search=N
         if method == 'gradient descent':
             d = -gk
         elif method == 'newton':
-            # d = -1*solve(1*hk, gk)
-            det = np.linalg.det(hk)
-            inv = np.linalg.inv(hk)
-            id = np.dot(hk, inv)
-            d = -np.linalg.solve(hk, gk)
+            if solver == 'cholesky':
+                d = -cholesky_solve(hk, gk)
+            elif solver == 'cg':
+                d = -scipy.sparse.linalg.cg(hk, gk)[0]
         onumber += 1
         ratio = np.dot(gk, gk) / np.dot(g0, g0)
         iterations.append(k)
@@ -206,7 +207,7 @@ def optimization_task(oracle, start, method='gradient descent', one_dim_search=N
         values.append(fk)
         grad_ratios.append(ratio)
 
-        if ratio <= epsilon:
+        if ratio <= epsilon or k > max_iter or onumber > max_oracle or times[-1] > max_time:
             break
 
         fun = lambda alpha: oracle(x + d * alpha, *args)
@@ -238,6 +239,7 @@ def optimization_task(oracle, start, method='gradient descent', one_dim_search=N
 
         x = x + d * alpha
 
+    print('-', end='')
     return x, iterations, oracles, times, values, grad_ratios
 
 
@@ -256,23 +258,6 @@ def normalize(array):
     array = np.array([(vector - mins) / (maxs - mins) for vector in array])
     array = np.array([add1(v) for v in array])
     return array
-
-
-def graph(x, y, x_l=None, y_l=None, title=None):
-    fig, ax = plt.subplots()
-    ax.plot(x, [np.log(t) for t in y])
-    ax.set(xlabel=x_l, ylabel=y_l, title=title)
-    ax.grid()
-    plt.show()
-
-
-def info(w_res, iterations, oracle, times, accuracies, grad_ratios, w_true):
-    print('|x_k - x*| =', np.linalg.norm(w_true - w_res))
-    print('iterations =', iterations[-1])
-    print('oracle =', oracle[-1])
-    print('time =', times[-1])
-    print('accuracy =', accuracies[-1])
-    print('grad_ratio =', grad_ratios[-1])
 
 
 def random_dataset(alpha, beta):
@@ -312,15 +297,6 @@ def pol(x):
 a1a = sklearn.datasets.load_svmlight_file('data/a1a.txt')
 X = a1a[0]
 
-ind = [X[:, i].sum() for i in range(X.shape[1])]
-offset = 0
-for i in range(X.shape[1]):
-    if ind[i] < 1:
-        X1 = X[:, :(i - offset)]
-        X2 = X[:, (i - offset + 1):]
-        X = scipy.sparse.csr_matrix(scipy.sparse.hstack([X1, X2]))
-        offset += 1
-
 dummy = scipy.sparse.coo_matrix([[1] for i in range(X.shape[0])])
 X_a1a = scipy.sparse.hstack([X, dummy])
 labels_a1a = a1a[1]
@@ -337,68 +313,112 @@ X, labels_rand = random_dataset(alpha, beta)
 dummy = scipy.sparse.csr_matrix([[1] for i in range(X.shape[0])])
 X_rand = scipy.sparse.hstack([X, dummy])
 
-X = X_a1a
-labels = labels_a1a
-X, X_test, labels, labels_test = train_test_split(X, labels, test_size=0.2)
-labels_test = (labels_test + 1) / 2
+# X, X_test, labels, labels_test = train_test_split(X, labels, test_size=0.1)
+# labels_test = (labels_test + 1) / 2
+
+# ind = [X[:, i].sum() for i in range(X.shape[1])]
+# offset = 0
+# for i in range(X.shape[1]):
+#     if ind[i] < 1:
+#         X1 = X[:, :(i - offset)]
+#         X2 = X[:, (i - offset + 1):]
+#         X1_test = X_test[:, :(i - offset)]
+#         X2_test = X_test[:, (i - offset + 1):]
+#         X = scipy.sparse.csr_matrix(scipy.sparse.hstack([X1, X2]))
+#         X_test = scipy.sparse.csr_matrix(scipy.sparse.hstack([X1_test, X2_test]))
+#         offset += 1
 
 # print(check_gradient(function, gradient, 2, X.shape[1], args=[X, labels]))
 # print(check_hessian(gradient, hessian, 2, X.shape[1], args=[X, labels]))
 # exit(0)
-w0 = (2 * np.random.random(X.shape[1]) - 1) / 2
-w0 = np.array([-0.22782837460727068, -0.002099347152515363, -0.052140320146127794, -0.4594284595239546, -0.01790283237206236,
-        0.12983476020225782, 0.06740164787764125, -0.3337806990901412, -0.49798962838309047, 0.4967946291937556,
-        0.49947796881425977, -0.09544983781315464, 0.35246564883124387, 0.042102009685434316, 0.03763645270942928,
-        0.4197768498715374, 0.30686599450997565, -0.4088194254895058, 0.01089880869436477, 0.11074770204517437,
-        0.1458653004565148, 0.208446036593952, 0.39441828933005285, -0.04954012997882096, 0.3997810996111618,
-        0.04175069070997195, -0.023943010348827176, 0.32085419857798136, 0.4122901348096297, -0.397076808619621,
-        -0.1534729352348143, -0.4512259695905094, 0.41267803474570397, 0.3266596907739706, -0.03310330731526023,
-        -0.06666283353349534, -0.4210292318993487, -0.25464195106956045, -0.3199620612488415, 0.15099360453960298,
-        -0.3097065319705129, -0.10117963593951385, -0.2717171466026035, -0.4549372062720147, 0.28360061021875826,
-        -0.3888476541559168, -0.35662416622919657, -0.4036774006681443, -0.4744773827292663, 0.2546036767889589,
-        0.055721289208309766, -0.2283143241680874, -0.4584855699794592, 0.1713218241748673, 0.2620666565700679,
-        0.26266780648561083, 0.16764972456129468, -0.10932321124723621, -0.385458180352781, -0.38758038413679197,
-        0.05746032733818762, -0.17022170536498382, -0.05791703393282366, 0.25537223313255, 0.1585573750515611,
-        -0.4101317974960528, 0.17155427728164663, -0.4036483353011906, 0.1815284371776572, 0.4385478415143389,
-        0.3694434971273496, -0.4685203817255963, 0.1998003525238219, -0.303425514916411, 0.37438376301236054,
-        0.3253888620624308, -0.06188391448218611, 0.20414547021540097, -0.4447208289352087, 0.42277682164314456,
-        -0.21885073294917856, -0.4659017885192317, -0.2758820705064968, 0.01997386445525684, 0.14604893492472004,
-        -0.04241116506593112, -0.1251896834662446, -0.16547884227699117, 0.2541978375077075, 0.32854906459749966,
-        0.4677698834363333, 0.2400369797678561, 0.22852724155878756, -0.40874046465244807, 0.45920375858258067,
-        -0.4929731298148555, -0.3484696509284765, 0.25647268563669756, 0.11059872940640958, 0.37811934277832115,
-        -0.48144838637311216, -0.19321482313146854, -0.42316752861272255, -0.1375946350791699, 0.27015633616229107,
-        -0.1920931320570013, 0.08308477880887266, -0.31502981042925304, 0.18725445145397945, -0.08422207550990368,
-        0.03609274593742673, 0.4465238370255289, -0.25264457814011465, -0.23830625860277765])
 
-# w_true = opt.minimize(function, w0, args=(X, labels), jac=gradient)['x']
-# w_true = np.array([302.5925661, -21.69111231, 207.55842006, -411.28849642, -32.24866798
-#                       , -4.31827468, -34.71080755, -73.71085179, 38.02308458, 49.91720216
-#                       , 66.57753268, 15.52855102, 27.0831392, -312.8996407, 24.89967549
-#                       , -34.07416117, 155.51644952, -106.31990291, 29.20772399, 65.4730172
-#                       , 82.76286878, -19.74667188, 15.59046806, -451.20587395, 13.58897497
-#                       , 79.36381994, -51.81633846, 19.5727145, -65.71161459, -102.40926345])
-# print(np.mean(np.array([round(sigma(w_true, x)) for x in X_test]) == labels_test))
+w0_a1a = (2 * np.random.random(X_a1a.shape[1]) - 1) / 2
+# начальная точка
 
-outers = np.array([np.outer(x, x).flatten() for x in X.todense()])
-outers = scipy.sparse.csr_matrix(outers)
-start = time.time()
-w_res, iterations, oracles, times, accuracies, grad_ratios = optimization_task(oracle, w0,
-                                                                               method='newton',
-                                                                               args=[X, labels, outers],
-                                                                               # one_dim_search='armiho',
-                                                                               # search_kwargs=dict(
-                                                                               # [('c', 0.5), ('x0', 10)]),
-                                                                               # [('maxiter', 10)]),
-                                                                               epsilon=0.000000001
-                                                                               # true_min=function(w_true, X, labels)
-                                                                               )
+w_true_a1a = opt.minimize(function, w0_a1a, args=(X_a1a, labels_a1a), jac=gradient)['x']
 
-Xw = X_test.dot(w_res)
-print(np.mean(np.array([round(sigmoid(p)) for p in Xw]) == labels_test))
-print(np.linalg.norm(w_res))
+f_min_a1a = function(w_true_a1a, X_a1a, labels_a1a)
 
+w0_cancer = (2 * np.random.random(X_cancer.shape[1]) - 1) / 2
+# начальная точка
+
+w_true_cancer = opt.minimize(function, w0_cancer, args=(X_cancer, labels_cancer), jac=gradient)['x']
+
+f_min_cancer = function(w_true_cancer, X_cancer, labels_cancer)
+
+w0_rand = (2 * np.random.random(X_rand.shape[1]) - 1) / 2
+
+# начальная точка
+
+w_true_rand = opt.minimize(function, w0_rand, args=(X_rand, labels_rand), jac=gradient)['x']
+
+f_min_rand = function(w_true_rand, X_rand, labels_rand)
+
+
+def graph_several(xs, ys, labels, x_l=None, y_l=None, title=None):
+    fig, ax = plt.subplots()
+
+    end = min([max(x) for x in xs])
+    inds = [np.argmin([np.abs(p - end) for p in x]) for x in xs]
+    xs1 = [xs[i][:inds[i]] for i in range(len(xs))]
+    ys1 = [ys[i][:inds[i]] for i in range(len(xs))]
+
+    def logs(y):
+        return [np.log(v) for v in y]
+
+    for i in range(len(xs)):
+        ax.plot(xs1[i], logs(ys1[i]), label=labels[i])
+
+    ax.set(xlabel=x_l, ylabel=y_l, title=title)
+    ax.grid()
+    ax.legend(fontsize=20)
+    plt.show()
+
+
+def info(w_res, iterations, oracle, times, accuracies, grad_ratios, w_true):
+    print('|x_k - x*| =', np.linalg.norm(w_true - w_res))
+    print('iterations =', iterations[-1])
+    print('oracle =', oracle[-1])
+    print('time =', times[-1])
+    print('accuracy =', accuracies[-1])
+    print('grad_ratio =', grad_ratios[-1])
+
+
+a1, i1, o1, t1, v1, r1 = optimization_task(oracle, w0_rand, method='gradient descent', args=[X_rand, labels_rand],
+                                           one_dim_search='brent', max_time=3)
+a2, i2, o2, t2, v2, r2 = optimization_task(oracle, w0_rand, method='gradient descent', args=[X_rand, labels_rand],
+                                           one_dim_search='golden', max_time=3, search_kwargs=dict([('eps', 0.1)]))
+a3, i3, o3, t3, v3, r3 = optimization_task(oracle, w0_rand, method='gradient descent', args=[X_rand, labels_rand],
+                                           one_dim_search='armiho', max_time=3, search_kwargs=dict([('x0', 50)]))
+a4, i4, o4, t4, v4, r4 = optimization_task(oracle, w0_rand, method='gradient descent', args=[X_rand, labels_rand],
+                                           one_dim_search='wolf', max_time=3, search_kwargs=dict([('c2', 0.1)]))
+a5, i5, o5, t5, v5, r5 = optimization_task(oracle, w0_rand, method='gradient descent', args=[X_rand, labels_rand],
+                                           one_dim_search='nester', max_time=3)
+graph_several([t1, t2, t3, t4, t5], [r1, r2, r3, r4, r5],
+              labels=['brent', 'golden', 'armiho', 'wolf', 'nester'],
+              x_l='$time$', y_l='$|\nabla f(w_k)|^2/|\nabla f(w_0)|^2$')
+graph_several([i1, i2, i3, i4, i5], [r1, r2, r3, r4, r5],
+              labels=['brent', 'golden', 'armiho', 'wolf', 'nester'],
+              x_l='$time$', y_l='$|\nabla f(w_k)|^2/|\nabla f(w_0)|^2$')
+
+# w2, i2, o2, t2, v2, r2 = optimization_task(oracle, w0, method='gradient descent', args=[X, labels],
+#                                            one_dim_search='golden', max_time=5, search_kwargs=dict([('eps', 0.1)]))
+# print(2)
+# w3, i3, o3, t3, v3, r3 = optimization_task(oracle, w0, method='gradient descent', args=[X, labels],
+#                                            one_dim_search='armiho', max_time=5, search_kwargs=dict([('x0', 10)]))
+# print(3)
+# w4, i4, o4, t4, v4, r4 = optimization_task(oracle, w0, method='gradient descent', args=[X, labels],
+#                                            one_dim_search='wolf', max_time=5)
+# print(4)
+# w5, i5, o5, t5, v5, r5 = optimization_task(oracle, w0, method='gradient descent', args=[X, labels],
+#                                            one_dim_search='nester', max_time=5)
+# print(5)
+# Xw = X_test.dot(w_)
+# print(np.mean(np.array([round(sigmoid(p)) for p in Xw]) == labels_test))
+# graph_several(t1, r1, t2, r2, t3, r3, t4, r4, t5, r5)
+# info(w_res, iterations, oracles, times, accuracies, grad_ratios, 0)
+# info(w_res1, iterations1, oracles1, times1, accuracies1, grad_ratios1, 0)
 # print('grad time', grad_time)
-info(w_res, iterations, oracles, times, accuracies, grad_ratios, 0)
 
 exit(0)
 # graph(iterations[5:], accuracy[5:], title='1.1')
