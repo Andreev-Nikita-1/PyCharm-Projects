@@ -349,7 +349,8 @@ breast_cancer = sklearn.datasets.load_svmlight_file('data/breast-cancer_scale.tx
 X = breast_cancer[0]
 dummy = scipy.sparse.csr_matrix([[1] for i in range(X.shape[0])])
 X_cancer = scipy.sparse.hstack([X, dummy])
-labels_cancer = breast_cancer[1] - 3
+d = dict([(l, 2 * y - 1) for y, l in enumerate(np.unique(breast_cancer[1]))])
+labels_cancer = np.array([d[l] for l in breast_cancer[1]])
 
 alpha = 2 * np.random.random(10) - 1
 beta = 2 * np.random.random() - 1
@@ -397,6 +398,8 @@ for i in range(X.shape[1]):
 # print(check_gradient(function, gradient, 2, X.shape[1], args=[X, labels]))
 # print(check_hessian(gradient, hessian, 2, X.shape[1], args=[X, labels]))
 # exit(0)
+# wcc = np.array([-1.69306349, 0.28322425, 0.1368323, 0.17023966, 0.19327425, 0.1532392,
+#                 -0.04671291, -0.19862356, -0.11945876, 0.07992941, 3.50820739])
 wcc = np.array([4.51749463e-01, 1.52952033e-01, 3.00656181e-01, 9.03358699e-02
                    , 6.40433491e-01, 4.37594457e-02, 1.98093133e-02, 7.53866494e-01
                    , 4.88037124e-01, -8.32214664e-01, 2.11683256e+01])

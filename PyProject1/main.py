@@ -205,7 +205,12 @@ def optimization_task(oracle, start, method='gradient descent', one_dim_search=N
 
 
 def main():
-    print('hi')
+    method = 'gradient descent'
+    one_dim_search = 'wolf'
+    seed = 0
+    epsilon = 0.00001
+    distr = 'uniform'
+
     for arg in sys.argv[1:]:
         name, value = arg.split('=')
         if name == '--ds_path':
@@ -229,7 +234,7 @@ def main():
         elif name == '--seed':
             seed = value
         elif name == '--eps':
-            epsilon = value
+            epsilon = float(value)
         elif name == '--point_distribution':
             if value == 'uniform':
                 distr = 'uniform'
@@ -241,16 +246,18 @@ def main():
     dummy = scipy.sparse.csr_matrix([[1] for i in range(X.shape[0])])
     X = scipy.sparse.hstack([X, dummy])
     labels = data[1]
+    d = dict([(l, 2 * y - 1) for y, l in enumerate(np.unique(labels))])
+    labels = np.array([d[l] for l in labels])
 
-    np.random.seed(seed)
     if distr == 'uniform':
-        w0 = 2 * np.random.random(X.shape[1]) - 1
+        w0 = (2 * np.random.random(X.shape[1]) - 1) / 2
     else:
-        w0 = np.random.normal(0, np.sqrt(10), X.shape[1])
+        w0 = np.random.normal(0, 0.5, X.shape[1])
+
+    outers = scipy.sparse.csr_matrix([np.outer(x, x).flatten() for x in X.todense()])
 
     w, fw, k, r, t, fc, gc, hc = optimization_task(oracle, w0, method=method, one_dim_search=one_dim_search,
-                                                   args=[X, labels], epsilon=epsilon)
-
+                                                   args=[X, labels, outers], epsilon=epsilon)
     answer = '{\n' + \
              '\t \'initial_point\': ' + '\'' + str(w0) + '\',\n' + \
              '\t \'optimal_point\': ' + '\'' + str(w) + '\',\n' + \
