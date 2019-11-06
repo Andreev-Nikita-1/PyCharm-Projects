@@ -249,6 +249,7 @@ def main():
     d = dict([(l, 2 * y - 1) for y, l in enumerate(np.unique(labels))])
     labels = np.array([d[l] for l in labels])
 
+    np.random.seed(int(seed))
     if distr == 'uniform':
         w0 = (2 * np.random.random(X.shape[1]) - 1) / 2
     else:

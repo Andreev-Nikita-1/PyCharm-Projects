@@ -186,11 +186,15 @@ def nester(fun, f0, d, L0=1):
 
 
 def solve(G, d):
-    if np.linalg.matrix_rank(G) < G.shape[0]:
-        G = G + 0.0001 * np.eye(G.shape[0])
-    L = np.linalg.cholesky(G)
-    Ltx = scipy.linalg.solve_triangular(L, d, lower=True)
-    return scipy.linalg.solve_triangular(np.transpose(L), Ltx, lower=False)
+    return scipy.sparse.linalg.cg(G, d)[0]
+
+
+# def solve(G, d):
+#     if np.linalg.matrix_rank(G) < G.shape[0]:
+#         G = G + 0.0001 * np.eye(G.shape[0])
+#     L = np.linalg.cholesky(G)
+#     Ltx = scipy.linalg.solve_triangular(L, d, lower=True)
+#     return scipy.linalg.solve_triangular(np.transpose(L), Ltx, lower=False)
 
 
 def optimization_task(oracle, start, method='gradient descent', one_dim_search=None, args=(),
@@ -362,7 +366,13 @@ outers_a1a = scipy.sparse.csr_matrix([np.outer(x, x).flatten() for x in X_a1a.to
 outers_cancer = scipy.sparse.csr_matrix([np.outer(x, x).flatten() for x in X_cancer.todense()])
 outers_rand = scipy.sparse.csr_matrix([np.outer(x, x).flatten() for x in X_rand.todense()])
 
-# w0_a1a = (2 * np.random.random(X_a1a.shape[1]) - 1) / 2
+w0_a1a = (2 * np.random.random(X_a1a.shape[1]) - 1) / 2
+
+_, _, t2, _, r2, _, _, _ = optimization_task(oracle, w0_a1a, method='newton', args=[X_a1a, labels_a1a, outers_a1a],
+                                             one_dim_search='unit step', max_time=3)
+
+
+exit(0)
 # X = X_cancer
 # labels = labels_cancer
 # X, X_test, labels, labels_test = train_test_split(X, labels, test_size=0.1)
