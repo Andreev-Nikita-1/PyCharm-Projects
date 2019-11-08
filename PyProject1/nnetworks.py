@@ -3,7 +3,8 @@ import copy
 from sklearn.datasets import make_blobs, make_moons
 import torch
 import time
-
+from torch import nn
+import torch.nn.functional as F
 
 # x = torch.randn((60, 3))
 # xs = np.array_split(x, 11)
@@ -12,7 +13,14 @@ import time
 # x = torch.exp(x)
 # y = x.sum(dim=1).view(-1, 1).expand_as(x)
 # print(x / y)
-
+module = nn.Conv2d(in_channels=3, out_channels=1, kernel_size=3, stride=2, padding=0)
+x = torch.ones(4, 3, 32, 32)
+conv1 = nn.Conv2d(3, 10, 5)
+pool = nn.MaxPool2d(2, 2)
+conv2 = nn.Conv2d(10, 16, 5)
+x = pool(F.relu(conv1(x)))
+x = pool(F.relu(conv2(x)))
+exit(0)
 
 class Module:
     def forward(self, x):
