@@ -34,5 +34,5 @@ def generate_tracking_number():
 
 
 f = open("data/Post_of_Russia_track_numbers.txt", 'w')
-for i in range(1, 10000):
+for i in range(1, 100):
     f.write(str(i) + " " + generate_tracking_number() + '\n')

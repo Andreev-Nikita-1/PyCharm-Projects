@@ -1,15 +1,16 @@
 import numpy as np
+import sqlite3
+import string
 
 package_types = ['R', 'L', 'V', 'C', 'E', 'U', 'Z']
 package_types_probabilities = [1 / len(package_types) for _ in package_types]
 
-countries = ['RU', 'US', 'CN', 'FR', 'IL', 'GB', 'UA']
-countries_probabilities = [1 / len(countries) for _ in countries]
-
-nm = open('data/countries_names.txt', 'r')
-ks = open('data/countries_keys.txt', 'r')
-all_countries_names = nm.read().split('\n')
-all_countries_keys = ks.read().split('\n')
+myConnection = sqlite3.connect('data/factbook.db')
+myCursor = myConnection.cursor()
+myQuery = """SELECT population, name,  code FROM facts ORDER BY population DESC LIMIT 20;"""
+myCursor.execute(myQuery)
+Large_countries = myCursor.execute(myQuery).fetchall()
+all_countries_keys = [s[2].upper() for s in Large_countries[1:]]
 
 
 def type_generator():
@@ -35,7 +36,7 @@ def control_number(numbers):
 
 
 def country_generator():
-    return np.random.choice(countries, p=countries_probabilities)
+    return np.random.choice(all_countries_keys)
 
 
 def generate_tracking_number():
@@ -45,5 +46,5 @@ def generate_tracking_number():
 
 
 f = open("data/EMS_track_numbers.txt", 'w')
-for i in range(1, 10000):
+for i in range(1, 100):
     f.write(str(i) + " " + generate_tracking_number() + '\n')
