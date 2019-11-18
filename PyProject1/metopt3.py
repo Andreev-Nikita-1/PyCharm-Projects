@@ -15,23 +15,23 @@ def sigmoid(x):
 
 def oracle(w, X, labels, order=0, no_function=False):
     Xw = X.dot(w)
-    sigmoids = [sigmoid(l * xw) for xw, l in zip(Xw, labels)]
+    sigmoids = sigmoid(labels * Xw)
 
     f = 0
     if not no_function:
-        f = -1 / X.shape[0] * np.sum([np.log(s) for s in sigmoids])
+        f = -1 / X.shape[0] * np.sum(np.log(sigmoids))
 
     if order == 0:
         return f
 
-    grad_coeffs = np.array([l * (1 - s) for s, l in zip(sigmoids, labels)])
+    grad_coeffs = labels * (1 - sigmoids)
     X1 = X.multiply(grad_coeffs.reshape(-1, 1))
     g = -1 / X.shape[0] * np.array(X1.sum(axis=0)).reshape(X.shape[1])
 
     if order == 1:
         return f, g, 0
 
-    hess_coeffs = np.array([s * (1 - s) for s in sigmoids])
+    hess_coeffs = sigmoids * (1 - sigmoids)
     h = lambda v: 1 / X.shape[0] * X.transpose().dot(X.dot(v) * hess_coeffs)
 
     if order == 2:
@@ -167,13 +167,13 @@ def solveCholesky(h, d):
 def solveCG(h, b, eta=0.01, policy='sqrtGradNorm'):
     b_norm = np.linalg.norm(b)
     if policy == 'sqrtGradNorm':
-        pol = np.sqrt(b_norm)
+        tol = min(np.sqrt(b_norm), 0.5)
     elif policy == 'gradNorm':
-        pol = b_norm
+        tol = min(b_norm, 0.5)
     elif policy == 'const':
-        pol = 1
+        tol = eta
 
-    eps = eta * pol * b_norm
+    eps = tol * b_norm
     x0 = np.random.random(b.shape[0]) * b_norm
     r = b - h(x0)
     p = r
@@ -185,7 +185,7 @@ def solveCG(h, b, eta=0.01, policy='sqrtGradNorm'):
         alpha = rr / np.dot(p, hp)
         x += alpha * p
         r -= alpha * hp
-        print(np.linalg.norm(r))
+        # print(np.linalg.norm(r))
         if np.linalg.norm(r) < eps:
             return x
         beta = r.dot(r) / rr
@@ -316,23 +316,24 @@ def graph_several(xs, ys, labels, end=None, beg=0, x_l=None, y_l=None, title=Non
 
 w0_a1a = (2 * np.random.random(X_a1a.shape[1]) - 1) / 2
 w0_cancer = (2 * np.random.random(X_cancer.shape[1]) - 1) / 2
-a1, i1, t1, v1, r1, fc1, gc1, hc1 = optimization_task(oracle, w0_a1a, method='newton',
-                                                      args=[X_a1a, labels_a1a],
-                                                      solver_kwargs=dict([('policy', 'sqrtGradNorm')]),
-                                                      one_dim_search='unit step', max_time=5)
-a2, i2, t2, v2, r2, fc2, gc2, hc2 = optimization_task(oracle, w0_a1a, method='newton',
-                                                      args=[X_a1a, labels_a1a],
+w0_rand = (2 * np.random.random(X_rand.shape[1]) - 1) / 2
+
+a1, i1, t1, v1, r1, fc1, gc1, hc1 = optimization_task(oracle, w0_cancer, method='newton',
+                                                      args=[X_cancer, labels_cancer],
                                                       solver_kwargs=dict([('policy', 'gradNorm')]),
-                                                      one_dim_search='unit step', max_time=5)
-a3, i3, t3, v3, r3, fc3, gc3, hc3 = optimization_task(oracle, w0_a1a, method='newton',
-                                                      args=[X_a1a, labels_a1a],
-                                                      solver_kwargs=dict([('policy', 'const')]),
-                                                      one_dim_search='unit step', max_time=5)
-a4, i4, t4, v4, r4, fc4, gc4, hc4 = optimization_task(oracle, w0_a1a, method='newton',
-                                                      args=[X_a1a, labels_a1a],
-                                                      linear_solver='cholesky', one_dim_search='unit step',
-                                                      max_time=5)
-graph_several([t1, t2, t3, t4], [r1, r2, r3, r4], labels=['sqrt', 'norm', 'const', 'chol'])
+                                                      one_dim_search='unit step', max_time=3, epsilon=1e-70)
+a2, i2, t2, v2, r2, fc2, gc2, hc2 = optimization_task(oracle, w0_cancer, method='newton',
+                                                      args=[X_cancer, labels_cancer],
+                                                      linear_solver='cholesky',
+                                                      one_dim_search='unit step', max_time=3, epsilon=1e-70)
+a3, i3, t3, v3, r3, fc3, gc3, hc3 = optimization_task(oracle, w0_cancer, method='gradient descent',
+                                                      args=[X_cancer, labels_cancer],
+                                                      one_dim_search='wolf', max_time=3, epsilon=1e-70)
+
+graph_several([t1, t2, t3], [r1, r2, r3], labels=['gradNorm', 'cholesky', 'gd'],
+              x_l='time', y_l='gradNorm ratio')
+graph_several([i1, i2, i3], [r1, r2, r3], labels=['gradNorm', 'cholesky', 'gd'],
+              x_l='time', y_l='gradNorm ratio')
 
 #
 #
