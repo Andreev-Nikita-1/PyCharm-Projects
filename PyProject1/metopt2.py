@@ -371,7 +371,6 @@ w0_a1a = (2 * np.random.random(X_a1a.shape[1]) - 1) / 2
 _, _, t2, _, r2, _, _, _ = optimization_task(oracle, w0_a1a, method='newton', args=[X_a1a, labels_a1a, outers_a1a],
                                              one_dim_search='unit step', max_time=3)
 
-
 exit(0)
 # X = X_cancer
 # labels = labels_cancer
