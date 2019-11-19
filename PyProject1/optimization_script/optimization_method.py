@@ -1,11 +1,10 @@
-import sys
 import time
 import numpy as np
 import scipy.linalg
 import scipy.optimize as opt
 
 
-def golden_search_bounded(fun, a0, b0, eps=100 * sys.float_info.epsilon, args=()):
+def golden_search_bounded(fun, a0, b0, eps=0.001, args=()):
     ratio = (1 + 5 ** 0.5) / 2
 
     def step(a, b, c, fc, onumber):
@@ -27,7 +26,7 @@ def golden_search_bounded(fun, a0, b0, eps=100 * sys.float_info.epsilon, args=()
     return solution[0], solution[2]
 
 
-def golden_search(fun, eps=100 * sys.float_info.epsilon, args=()):
+def golden_search(fun, eps=0.001, args=()):
     a, _, b, _, _, _, onumber = opt.bracket(fun, args=args)
     if b < a:
         a, b = b, a
@@ -35,7 +34,7 @@ def golden_search(fun, eps=100 * sys.float_info.epsilon, args=()):
     return gsb[0], gsb[1] + onumber
 
 
-def armiho(fun, c=0.1, k=10, f0=None, df0=None):
+def armijo(fun, c=0.1, k=10, f0=None, df0=None):
     x = 1
     oracle = 0
 
@@ -64,7 +63,7 @@ def armiho(fun, c=0.1, k=10, f0=None, df0=None):
     return x, fx, oracle
 
 
-def nester(fun, f0, d, L0=1):
+def lipschitz(fun, f0, d, L0=1):
     L = L0
     oracle = 0
     fx = fun(1 / L)
@@ -88,6 +87,11 @@ def solveCholesky(h, d, eps=0.0001):
 
 
 def solveCG(h, b, eta=0.5, policy='sqrtGradNorm'):
+    if eta is None:
+        eta = 0.5
+    if policy is None:
+        policy = 'sqrtGradNorm'
+
     b_norm = np.linalg.norm(b)
     if policy == 'sqrtGradNorm':
         tol = min(np.sqrt(b_norm), 0.5)
@@ -123,7 +127,7 @@ def optimization_task(oracle, start, method='gradient descent', linear_solver='c
     if method == 'gradient descent':
         ord = 1
         if one_dim_search is None:
-            one_dim_search = 'brent'
+            one_dim_search = 'armijo'
     elif method == 'newton':
         ord = 2
         if one_dim_search is None:
@@ -134,7 +138,7 @@ def optimization_task(oracle, start, method='gradient descent', linear_solver='c
     gc += 1
     fk = f0
 
-    if one_dim_search == 'nester':
+    if one_dim_search == 'lipschitz':
         L, L0 = 2, 0
         if 'L0' in search_kwargs.keys():
             L0 = 2 * search_kwargs['L0']
@@ -149,8 +153,9 @@ def optimization_task(oracle, start, method='gradient descent', linear_solver='c
         ratio = np.dot(gk, gk) / np.dot(g0, g0)
 
         if ratio <= epsilon or k > max_iter or time.time() - start_time > max_time:
-            if one_dim_search != 'armiho' and one_dim_search != 'wolf' and one_dim_search != 'nester':
-                fk = oracle(x)
+            if one_dim_search != 'armijo' and one_dim_search != 'wolfe' and one_dim_search != 'lipschitz':
+                fk = oracle(x, *args)
+                fc += 1
             break
 
         k += 1
@@ -167,17 +172,17 @@ def optimization_task(oracle, start, method='gradient descent', linear_solver='c
 
         if one_dim_search == 'unit step':
             alpha = 1
-        elif one_dim_search == 'golden':
+        elif one_dim_search == 'golden_search':
             alpha, oracle_counter = golden_search(fun, **search_kwargs)
             fc += oracle_counter
         elif one_dim_search == 'brent':
             solution = opt.minimize_scalar(fun)
             alpha = solution['x']
             fc += solution['nfev']
-        elif one_dim_search == 'armiho':
-            alpha, fk, oracle_counter = armiho(fun, **search_kwargs, f0=fk, df0=np.dot(gk, d))
+        elif one_dim_search == 'armijo':
+            alpha, fk, oracle_counter = armijo(fun, **search_kwargs, f0=fk, df0=np.dot(gk, d))
             fc += oracle_counter
-        elif one_dim_search == 'wolf':
+        elif one_dim_search == 'wolfe':
             f_for_wolf = lambda z: oracle(z, *args)
             g_for_wolf = lambda z: oracle(z, *args, order=1, no_function=True)[1]
             solution = opt.line_search(f_for_wolf, g_for_wolf, x, d, **search_kwargs, gfk=gk, old_fval=fk)
@@ -189,8 +194,8 @@ def optimization_task(oracle, start, method='gradient descent', linear_solver='c
             fk = solution[3]
             if fk == None:
                 fk = fun(1)
-        elif one_dim_search == 'nester':
-            L, fk, oracle_counter = nester(fun, fk, gk, L0=max(L / 2, L0))
+        elif one_dim_search == 'lipschitz':
+            L, fk, oracle_counter = lipschitz(fun, fk, gk, L0=max(L / 2, L0))
             alpha = 1 / L
             fc += oracle_counter
         else:

@@ -227,7 +227,7 @@ def optimization_task(oracle, start, method='gradient descent', one_dim_search=N
 
     while True:
         f_, gk, hk = oracle(x, *args, order=ord, no_function=flag)
-        # в реализации в main.py стоит флаг no_function
+        # в реализации в __main__.py стоит флаг no_function
         if not flag:
             fk = f_
             fc += 1
