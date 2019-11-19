@@ -83,24 +83,22 @@ X_rand = scipy.sparse.hstack([X, dummy])
 # на заданном интервале: возвращает точку минимума и число вызовов функции
 def golden_search_bounded(fun, a0, b0, eps=100 * sys.float_info.epsilon, args=()):
     ratio = (1 + 5 ** 0.5) / 2
-
-    def step(a, b, c, fc, onumber):
-        if b - a < eps:
-            return a, fun(a, *args), onumber + 1
+    a, b, c, d = a0, b0, (b0 - a0) / ratio + a0, b0 - (b0 - a0) / ratio
+    fc, fd = fun(c, *args), fun(d, *args)
+    onumber = 2
+    while True:
+        if b - a <= eps:
+            return c, fc
+        if fc < fd:
+            c, d, b = a + d - c, c, d
+            fd = fc
+            fc = fun(c, *args)
+            onumber += 1
         else:
-            d = a + b - c
-            fd = fun(d)
-            if c > d:
-                c, d = d, c
-                fc, fd = fd, fc
-            if fc < fd:
-                return step(a, d, c, fc, onumber + 1)
-            else:
-                return step(c, b, d, fd, onumber + 1)
-
-    c0 = a0 + (b0 - a0) / ratio
-    solution = step(a0, b0, c0, fun(c0, *args), 0)
-    return solution[0], solution[2]
+            a, c, d = c, d, b - d + c
+            fc = fd
+            fd = fun(d, *args)
+            onumber += 1
 
 
 # общий случай используя bracket
@@ -155,10 +153,14 @@ def nester(fun, f0, d, L0=1):
     return L, fx, oracle
 
 
-def solveCholesky(h, d):
+def solveCholesky(h, d, eps=0.0001, normHess=0):
     G = np.array([h(x) for x in np.eye(d.shape[0])])
+    if normHess == 0:
+        eps *= np.sqrt(np.linalg.norm(G.flatten())/ G.shape[0])
+    elif normHess == 1:
+        eps *= np.sqrt(np.linalg.norm(G.flatten()))
     if np.linalg.matrix_rank(G) < G.shape[0]:
-        G = G + 0.0001 * np.eye(G.shape[0])
+        G = G + eps * np.eye(G.shape[0])
     L = np.linalg.cholesky(G)
     Ltx = scipy.linalg.solve_triangular(L, d, lower=True)
     return scipy.linalg.solve_triangular(np.transpose(L), Ltx, lower=False)
@@ -320,19 +322,21 @@ w0_rand = (2 * np.random.random(X_rand.shape[1]) - 1) / 2
 
 a1, i1, t1, v1, r1, fc1, gc1, hc1 = optimization_task(oracle, w0_cancer, method='newton',
                                                       args=[X_cancer, labels_cancer],
-                                                      solver_kwargs=dict([('policy', 'gradNorm')]),
-                                                      one_dim_search='unit step', max_time=3, epsilon=1e-70)
+                                                      linear_solver='cholesky',
+                                                      solver_kwargs=dict([('normHess', 0)]),
+                                                      one_dim_search='unit step', max_time=0.1)
 a2, i2, t2, v2, r2, fc2, gc2, hc2 = optimization_task(oracle, w0_cancer, method='newton',
                                                       args=[X_cancer, labels_cancer],
                                                       linear_solver='cholesky',
-                                                      one_dim_search='unit step', max_time=3, epsilon=1e-70)
-a3, i3, t3, v3, r3, fc3, gc3, hc3 = optimization_task(oracle, w0_cancer, method='gradient descent',
+                                                      solver_kwargs=dict([('normHess', 1)]),
+                                                      one_dim_search='unit step', max_time=0.1)
+a3, i3, t3, v3, r3, fc3, gc3, hc3 = optimization_task(oracle, w0_cancer, method='newton',
                                                       args=[X_cancer, labels_cancer],
-                                                      one_dim_search='wolf', max_time=3, epsilon=1e-70)
+                                                      linear_solver='cholesky',
+                                                      solver_kwargs=dict([('normHess', 2)]),
+                                                      one_dim_search='unit step', max_time=0.1)
 
-graph_several([t1, t2, t3], [r1, r2, r3], labels=['gradNorm', 'cholesky', 'gd'],
-              x_l='time', y_l='gradNorm ratio')
-graph_several([i1, i2, i3], [r1, r2, r3], labels=['gradNorm', 'cholesky', 'gd'],
+graph_several([t1, t2, t3], [r1, r2, r3], labels=['norm/n', 'norm', 'not norm'],
               x_l='time', y_l='gradNorm ratio')
 
 #

@@ -13258,29 +13258,28 @@ div#notebook {
 <div class="prompt input_prompt">In&nbsp;[7]:</div>
 <div class="inner_cell">
     <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="k">def</span> <span class="nf">golden_search_bounded</span><span class="p">(</span><span class="n">fun</span><span class="p">,</span> <span class="n">a0</span><span class="p">,</span> <span class="n">b0</span><span class="p">,</span> <span class="n">eps</span><span class="o">=</span><span class="mi">100</span><span class="o">*</span><span class="n">sys</span><span class="o">.</span><span class="n">float_info</span><span class="o">.</span><span class="n">epsilon</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">()):</span>
+<div class=" highlight hl-ipython3"><pre><span></span><span class="c1">#этот чуть исправлен после дз2 если что</span>
+<span class="k">def</span> <span class="nf">golden_search_bounded</span><span class="p">(</span><span class="n">fun</span><span class="p">,</span> <span class="n">a0</span><span class="p">,</span> <span class="n">b0</span><span class="p">,</span> <span class="n">eps</span><span class="o">=</span><span class="mi">10</span> <span class="o">*</span> <span class="n">sys</span><span class="o">.</span><span class="n">float_info</span><span class="o">.</span><span class="n">epsilon</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">()):</span>
     <span class="n">ratio</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="mi">5</span> <span class="o">**</span> <span class="mf">0.5</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span>
-
-    <span class="k">def</span> <span class="nf">step</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">c</span><span class="p">,</span> <span class="n">fc</span><span class="p">,</span> <span class="n">onumber</span><span class="p">):</span>
-        <span class="k">if</span> <span class="n">b</span> <span class="o">-</span> <span class="n">a</span> <span class="o">&lt;</span> <span class="n">eps</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">a</span><span class="p">,</span> <span class="n">fun</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">),</span> <span class="n">onumber</span> <span class="o">+</span> <span class="mi">1</span>
+    <span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">c</span><span class="p">,</span> <span class="n">d</span> <span class="o">=</span> <span class="n">a0</span><span class="p">,</span> <span class="n">b0</span><span class="p">,</span> <span class="p">(</span><span class="n">b0</span> <span class="o">-</span> <span class="n">a0</span><span class="p">)</span> <span class="o">/</span> <span class="n">ratio</span> <span class="o">+</span> <span class="n">a0</span><span class="p">,</span> <span class="n">b0</span> <span class="o">-</span> <span class="p">(</span><span class="n">b0</span> <span class="o">-</span> <span class="n">a0</span><span class="p">)</span> <span class="o">/</span> <span class="n">ratio</span>
+    <span class="n">fc</span><span class="p">,</span> <span class="n">fd</span> <span class="o">=</span> <span class="n">fun</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">),</span> <span class="n">fun</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span>
+    <span class="n">onumber</span> <span class="o">=</span> <span class="mi">2</span>
+    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">b</span> <span class="o">-</span> <span class="n">a</span> <span class="o">&lt;=</span> <span class="n">eps</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">c</span><span class="p">,</span> <span class="n">onumber</span>
+        <span class="k">if</span> <span class="n">fc</span> <span class="o">&lt;</span> <span class="n">fd</span><span class="p">:</span>
+            <span class="n">c</span><span class="p">,</span> <span class="n">d</span><span class="p">,</span> <span class="n">b</span> <span class="o">=</span> <span class="n">a</span> <span class="o">+</span> <span class="n">d</span> <span class="o">-</span> <span class="n">c</span><span class="p">,</span> <span class="n">c</span><span class="p">,</span> <span class="n">d</span>
+            <span class="n">fd</span> <span class="o">=</span> <span class="n">fc</span>
+            <span class="n">fc</span> <span class="o">=</span> <span class="n">fun</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span>
+            <span class="n">onumber</span> <span class="o">+=</span> <span class="mi">1</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">d</span> <span class="o">=</span> <span class="n">a</span> <span class="o">+</span> <span class="n">b</span> <span class="o">-</span> <span class="n">c</span>
-            <span class="n">fd</span> <span class="o">=</span> <span class="n">fun</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">c</span> <span class="o">&gt;</span> <span class="n">d</span><span class="p">:</span>
-                <span class="n">c</span><span class="p">,</span> <span class="n">d</span> <span class="o">=</span> <span class="n">d</span><span class="p">,</span> <span class="n">c</span>
-                <span class="n">fc</span><span class="p">,</span> <span class="n">fd</span> <span class="o">=</span> <span class="n">fd</span><span class="p">,</span> <span class="n">fc</span>
-            <span class="k">if</span> <span class="n">fc</span> <span class="o">&lt;</span> <span class="n">fd</span><span class="p">:</span>
-                <span class="k">return</span> <span class="n">step</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">d</span><span class="p">,</span> <span class="n">c</span><span class="p">,</span> <span class="n">fc</span><span class="p">,</span> <span class="n">onumber</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="k">return</span> <span class="n">step</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">d</span><span class="p">,</span> <span class="n">fd</span><span class="p">,</span> <span class="n">onumber</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
-
-    <span class="n">c0</span> <span class="o">=</span> <span class="n">a0</span> <span class="o">+</span> <span class="p">(</span><span class="n">b0</span> <span class="o">-</span> <span class="n">a0</span><span class="p">)</span> <span class="o">/</span> <span class="n">ratio</span>
-    <span class="n">solution</span> <span class="o">=</span> <span class="n">step</span><span class="p">(</span><span class="n">a0</span><span class="p">,</span> <span class="n">b0</span><span class="p">,</span> <span class="n">c0</span><span class="p">,</span> <span class="n">fun</span><span class="p">(</span><span class="n">c0</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">),</span> <span class="mi">0</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">solution</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">solution</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+            <span class="n">a</span><span class="p">,</span> <span class="n">c</span><span class="p">,</span> <span class="n">d</span> <span class="o">=</span> <span class="n">c</span><span class="p">,</span> <span class="n">d</span><span class="p">,</span> <span class="n">b</span> <span class="o">-</span> <span class="n">d</span> <span class="o">+</span> <span class="n">c</span>
+            <span class="n">fc</span> <span class="o">=</span> <span class="n">fd</span>
+            <span class="n">fd</span> <span class="o">=</span> <span class="n">fun</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span>
+            <span class="n">onumber</span> <span class="o">+=</span> <span class="mi">1</span>
 
 
-<span class="k">def</span> <span class="nf">golden_search</span><span class="p">(</span><span class="n">fun</span><span class="p">,</span> <span class="n">eps</span><span class="o">=</span><span class="mi">100</span><span class="o">*</span><span class="n">sys</span><span class="o">.</span><span class="n">float_info</span><span class="o">.</span><span class="n">epsilon</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">()):</span>
+<span class="k">def</span> <span class="nf">golden_search</span><span class="p">(</span><span class="n">fun</span><span class="p">,</span> <span class="n">eps</span><span class="o">=</span><span class="mi">10</span><span class="o">*</span><span class="n">sys</span><span class="o">.</span><span class="n">float_info</span><span class="o">.</span><span class="n">epsilon</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">()):</span>
     <span class="n">a</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">onumber</span> <span class="o">=</span> <span class="n">opt</span><span class="o">.</span><span class="n">bracket</span><span class="p">(</span><span class="n">fun</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="n">args</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">b</span> <span class="o">&lt;</span> <span class="n">a</span><span class="p">:</span>
         <span class="n">a</span><span class="p">,</span> <span class="n">b</span> <span class="o">=</span> <span class="n">b</span><span class="p">,</span> <span class="n">a</span>
@@ -13351,7 +13350,7 @@ div#notebook {
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
-<div class="prompt input_prompt">In&nbsp;[8]:</div>
+<div class="prompt input_prompt">In&nbsp;[1]:</div>
 <div class="inner_cell">
     <div class="input_area">
 <div class=" highlight hl-ipython3"><pre><span></span><span class="k">def</span> <span class="nf">solveCholesky</span><span class="p">(</span><span class="n">h</span><span class="p">,</span> <span class="n">d</span><span class="p">,</span> <span class="n">eps</span><span class="o">=</span><span class="mf">0.0001</span><span class="p">):</span>
@@ -13394,18 +13393,20 @@ div#notebook {
     <span class="n">r</span> <span class="o">=</span> <span class="n">b</span> <span class="o">-</span> <span class="n">h</span><span class="p">(</span><span class="n">x0</span><span class="p">)</span>
     <span class="n">p</span> <span class="o">=</span> <span class="n">r</span>
     <span class="n">x</span> <span class="o">=</span> <span class="n">x0</span>
+    <span class="n">hc</span> <span class="o">=</span> <span class="mi">1</span>
 
     <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
         <span class="n">rr</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">r</span><span class="p">)</span>
         <span class="n">hp</span> <span class="o">=</span> <span class="n">h</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+        <span class="n">hc</span> <span class="o">+=</span> <span class="mi">1</span>
         <span class="n">alpha</span> <span class="o">=</span> <span class="n">rr</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">hp</span><span class="p">)</span>
         <span class="n">x</span> <span class="o">+=</span> <span class="n">alpha</span> <span class="o">*</span> <span class="n">p</span>
         <span class="n">r</span> <span class="o">-=</span> <span class="n">alpha</span> <span class="o">*</span> <span class="n">hp</span>
-        <span class="c1"># print(np.linalg.norm(r))</span>
         <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">r</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">eps</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">x</span>
+            <span class="k">break</span>
         <span class="n">beta</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">r</span><span class="p">)</span> <span class="o">/</span> <span class="n">rr</span>
         <span class="n">p</span> <span class="o">=</span> <span class="n">r</span> <span class="o">+</span> <span class="n">beta</span> <span class="o">*</span> <span class="n">p</span>
+    <span class="k">return</span> <span class="n">x</span><span class="p">,</span> <span class="n">hc</span>
 </pre></div>
 
     </div>
@@ -13500,7 +13501,8 @@ div#notebook {
             <span class="n">d</span> <span class="o">=</span> <span class="o">-</span><span class="n">gk</span>
         <span class="k">elif</span> <span class="n">method</span> <span class="o">==</span> <span class="s1">&#39;newton&#39;</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">linear_solver</span> <span class="o">==</span> <span class="s1">&#39;cg&#39;</span><span class="p">:</span>
-                <span class="n">d</span> <span class="o">=</span> <span class="n">solveCG</span><span class="p">(</span><span class="n">hk</span><span class="p">,</span> <span class="o">-</span><span class="n">gk</span><span class="p">,</span> <span class="o">**</span><span class="n">solver_kwargs</span><span class="p">)</span>
+                <span class="n">d</span><span class="p">,</span> <span class="n">oracle_counter</span> <span class="o">=</span> <span class="n">solveCG</span><span class="p">(</span><span class="n">hk</span><span class="p">,</span> <span class="o">-</span><span class="n">gk</span><span class="p">,</span> <span class="o">**</span><span class="n">solver_kwargs</span><span class="p">)</span>
+                <span class="n">hc</span> <span class="o">+=</span> <span class="n">oracle_counter</span>
             <span class="k">elif</span> <span class="n">linear_solver</span> <span class="o">==</span> <span class="s1">&#39;cholesky&#39;</span><span class="p">:</span>
                 <span class="n">d</span> <span class="o">=</span> <span class="n">solveCholesky</span><span class="p">(</span><span class="n">hk</span><span class="p">,</span> <span class="o">-</span><span class="n">gk</span><span class="p">,</span> <span class="o">**</span><span class="n">solver_kwargs</span><span class="p">)</span>
 

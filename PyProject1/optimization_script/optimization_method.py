@@ -1,32 +1,31 @@
+import sys
 import time
 import numpy as np
 import scipy.linalg
 import scipy.optimize as opt
 
 
-def golden_search_bounded(fun, a0, b0, eps=0.001, args=()):
+def golden_search_bounded(fun, a0, b0, eps=10 * sys.float_info.epsilon, args=()):
     ratio = (1 + 5 ** 0.5) / 2
-
-    def step(a, b, c, fc, onumber):
-        if b - a < eps:
-            return a, fun(a, *args), onumber + 1
+    a, b, c, d = a0, b0, (b0 - a0) / ratio + a0, b0 - (b0 - a0) / ratio
+    fc, fd = fun(c, *args), fun(d, *args)
+    onumber = 2
+    while True:
+        if b - a <= eps:
+            return c, onumber
+        if fc < fd:
+            c, d, b = a + d - c, c, d
+            fd = fc
+            fc = fun(c, *args)
+            onumber += 1
         else:
-            d = a + b - c
-            fd = fun(d)
-            if c > d:
-                c, d = d, c
-                fc, fd = fd, fc
-            if fc < fd:
-                return step(a, d, c, fc, onumber + 1)
-            else:
-                return step(c, b, d, fd, onumber + 1)
-
-    c0 = a0 + (b0 - a0) / ratio
-    solution = step(a0, b0, c0, fun(c0, *args), 0)
-    return solution[0], solution[2]
+            a, c, d = c, d, b - d + c
+            fc = fd
+            fd = fun(d, *args)
+            onumber += 1
 
 
-def golden_search(fun, eps=0.001, args=()):
+def golden_search(fun, eps=10 * sys.float_info.epsilon, args=()):
     a, _, b, _, _, _, onumber = opt.bracket(fun, args=args)
     if b < a:
         a, b = b, a
@@ -105,17 +104,21 @@ def solveCG(h, b, eta=0.5, policy='sqrtGradNorm'):
     r = b - h(x0)
     p = r
     x = x0
+    hc = 1
 
     while True:
         rr = r.dot(r)
         hp = h(p)
+        hc += 1
         alpha = rr / np.dot(p, hp)
         x += alpha * p
         r -= alpha * hp
         if np.linalg.norm(r) < eps:
-            return x
+            break
         beta = r.dot(r) / rr
         p = r + beta * p
+
+    return x, hc
 
 
 def optimization_task(oracle, start, method='gradient descent', linear_solver='cg', solver_kwargs=dict([]),
@@ -164,7 +167,8 @@ def optimization_task(oracle, start, method='gradient descent', linear_solver='c
             d = -gk
         elif method == 'newton':
             if linear_solver == 'cg':
-                d = solveCG(hk, -gk, **solver_kwargs)
+                d, oracle_counter = solveCG(hk, -gk, **solver_kwargs)
+                hc += oracle_counter
             elif linear_solver == 'cholesky':
                 d = solveCholesky(hk, -gk, **solver_kwargs)
 
