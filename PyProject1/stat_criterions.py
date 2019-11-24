@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import itertools
+import os
 
 # v17 = list(itertools.accumulate([7.92, 36.16, 25.09, 27.49, 3.34]))
 # v18 = list(itertools.accumulate([3.85, 31.13, 32.96, 29.92, 2.13]))
@@ -116,4 +117,10 @@ the progress of the divestiture process. Such reports shall be submitted within 
 of every month with a simultaneous copy to the Monitoring Trustee and a non-confidential copy to
 the Notifying Party."""
 
-print(" ".join(s.split('\n')))
+path1 = 'data/EMS_Recordings'
+path2 = 'data/Post_Russia_Recordings'
+
+# for f in os.listdir(path1):
+#     file = os.path.join(path1, f)
+#     os.rename(file, file[:-3]+'mp3')
+
