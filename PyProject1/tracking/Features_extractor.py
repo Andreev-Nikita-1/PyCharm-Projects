@@ -1,41 +1,51 @@
 import numpy as np
-import tensorflow.compat.v1 as tf
+import onnx
+import onnxruntime
 
-data = np.loadtxt('1wav.csv', delimiter=',')
+letters = []
+fi = open("letters.lst", 'r', encoding='utf8')
+for line in fi.readlines():
+    letters.append(line[0])
+letters = np.array(letters)
 
 
-class Loader:
-    def __init__(self, path):
-        self.load_graph(path)
+class Network:
+    def __init__(self):
+        self.onnx_session = onnxruntime.InferenceSession("quartznet.onnx")
+        for nn_input in self.onnx_session.get_inputs():
+            print(nn_input)
 
-    def load_graph(self, model_filepath):
-        print('Loading model...')
-        self.graph = tf.Graph()
-        self.sess = tf.InteractiveSession(graph=self.graph, config=tf.ConfigProto(allow_soft_placement=False))
+    def apply(self, features):
+        ort_outs = np.array(self.onnx_session.run(None, {"features": features}))
+        return ort_outs.reshape(features.shape[0], -1, 36)
 
-        with tf.gfile.GFile(model_filepath, 'rb') as f:
-            graph_def = tf.GraphDef()
-            graph_def.ParseFromString(f.read())
 
-        print('Check out the input placeholders:')
-        nodes = [n.name + ' => ' + n.op for n in graph_def.node if n.op in ('Placeholder')]
-        for node in nodes:
-            print(node)
+l = 896
+tensor = []
+for i in range(51, 71):
+    result = np.loadtxt('../data/Post_Russia_Recordings_csv/csvs/' + str(i) + '.csv', delimiter=',', dtype=np.float32)
+    result = np.concatenate([result, np.zeros(shape=(l - result.shape[0], 80), dtype=np.float32)], axis=0)
+    tensor.append(result.T.reshape(80, -1))
+tensor = np.array(tensor)
 
-        self.input_features = tf.placeholder(tf.float16, shape=[1, 80, 514], name='input_features')
-        self.input_lengths = tf.placeholder(tf.int32, shape=[1, 1], name='input_lengths')
+# tensor = np.loadtxt('1wav.csv', delimiter=',', dtype=np.float32).T.reshape(1, 80, -1)
+Nw = Network()
+res = Nw.apply(tensor)
 
-        tf.import_graph_def(graph_def, {'input_features': self.input_features, 'input_lengths': self.input_lengths})
-
-        print('Model loading complete!')
-
-    def test(self, data):
-        output_tensor = self.graph.get_tensor_by_name("import/cnn/output:0")
-        output = self.sess.run(output_tensor,
-                               feed_dict={self.input_features: data, self.input_lengths: np.array([[514]])})
-
-        return output
-
-loader = Loader('saved_model.pb')
-
-exit(0)
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
