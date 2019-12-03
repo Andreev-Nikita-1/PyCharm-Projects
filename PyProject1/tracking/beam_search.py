@@ -1,4 +1,5 @@
 import numpy as np
+from tracking.features_extractor import *
 
 
 class Decoder():
@@ -9,7 +10,7 @@ class Decoder():
 
         T = mat.shape[0]
         Probs = [{'': {'b': 1, 'nb': 0}}]
-        # [{ beam: {'b': Pb[t], 'nb': Pnb[t]} }]
+        # [{ beam: {'b': Pb[t], 'nb': Pnb[t]} } for t]
 
         for t in range(1, T + 1):
             next_probs = {beam + letter: {'b': 0, 'nb': 0} for beam in Probs[t - 1].keys() for letter in
@@ -34,22 +35,27 @@ class Decoder():
         return Probs
 
 
+def answer(probs):
+    s = sorted(probs[-1].items(), key=lambda x: x[1]['b'] + x[1]['nb'], reverse=True)
+    for x in s:
+        print(x[0])
+
+
 D = Decoder()
-mats = np.exp(np.load('PR_first70.npy'))
-letters = []
-fi = open("letters.lst", 'r', encoding='utf8')
-for line in fi.readlines():
-    letters.append(line[0])
-mat = mats[-1]
-print([letters[np.argmax(x)] for x in mat])
+input = np.exp((Waw_to_probs('data/Post_Russia_Recordings_wav/1.wav')))
+# input = np.exp(Waw_to_probs('data/recordings/60_7.wav'))
+# input = np.exp(Waw_to_probs('data/recordings/lasso.wav'))
+answer(D.beam_search(input, get_letters()[:-1], -1, 10))
 
-ans = D.beam_search(mat, letters, 1, 10)
-for a in ans:
-    print(sorted(a.items(), key=lambda d: d[1]['b'] + d[1]['nb'], reverse=True)[0][0])
-
-
-
-
+# mats = np.exp(np.load('PR_first70.npy'))
+# mat = mats[-1]
+# ans = D.beam_search(mat, get_letters(), 1, 10)
+# print(answer(ans))
+# print([letters[np.argmax(x)] for x in mat])
+#
+# for a in ans:
+#     print(sorted(a.items(), key=lambda d: d[1]['b'] + d[1]['nb'], reverse=True)[0][0])
+#
 #
 #
 #
