@@ -3,8 +3,8 @@ import argparse
 import cherrypy
 import psycopg2 as pg_driver
 
-from sqlalchemy import Boolean, CheckConstraint, Column, Date, Enum, ForeignKey, Integer, Numeric, Table, Text, \
-    UniqueConstraint, text
+# coding: utf-8
+from sqlalchemy import Boolean, CheckConstraint, Column, Date, Enum, ForeignKey, Integer, Numeric, Table, Text, UniqueConstraint, text
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base
 
@@ -148,8 +148,6 @@ class Rentcontract(Base):
 t_housingreview = Table(
     'housingreview', metadata,
     Column('contract_id', ForeignKey('rentcontract.id'), nullable=False, unique=True),
-    Column('housing_id', ForeignKey('housing.id'), nullable=False),
-    Column('renter_id', ForeignKey('account.id'), nullable=False),
     Column('location_rate', Integer),
     Column('cleanliness_rate', Integer),
     Column('friendliness_rate', Integer),
@@ -159,15 +157,15 @@ t_housingreview = Table(
     CheckConstraint('(location_rate >= 1) AND (location_rate <= 5)')
 )
 
+
 t_renterreview = Table(
     'renterreview', metadata,
     Column('contract_id', ForeignKey('rentcontract.id'), nullable=False, unique=True),
-    Column('renter_id', ForeignKey('account.id'), nullable=False),
-    Column('host_id', ForeignKey('account.id'), nullable=False),
     Column('rate', Integer),
     Column('review', Text),
     CheckConstraint('(rate >= 1) AND (rate <= 5)')
 )
+
 
 parser = argparse.ArgumentParser(description='Hello DB web application')
 parser.add_argument('--pg-host', help='PostgreSQL host name', default='localhost')
@@ -200,7 +198,7 @@ class App(object):
 	AVG(HR.friendliness_rate) AS friendliness_rate,
 	AVG(PPW.cost) AS average_cost
 FROM HousingReview HR JOIN RentContract RCT ON RCT.id = HR.contract_id
-JOIN RentConditions RCS ON RCS.id = RCT.conditions_id
+RIGHT JOIN RentConditions RCS ON RCS.id = RCT.conditions_id
 JOIN PricePerWeek PPW ON RCS.id = PPW.conditions_id
 JOIN Housing H ON H.id = RCS.housing_id
 GROUP BY H.id) AS D
@@ -215,7 +213,7 @@ ORDER BY country ASC,
 	AVG(HR.cleanliness_rate) AS cleanliness_rate,
 	AVG(HR.friendliness_rate) AS friendliness_rate
 FROM HousingReview HR JOIN RentContract RCT ON RCT.id = HR.contract_id
-JOIN RentConditions RCS ON RCS.id = RCT.conditions_id
+RIGHT JOIN RentConditions RCS ON RCS.id = RCT.conditions_id
 JOIN Housing H ON H.id = RCS.housing_id WHERE H.id = %s
 GROUP BY H.id) AS D
 ORDER BY country ASC,
