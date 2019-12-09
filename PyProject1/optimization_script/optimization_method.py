@@ -266,7 +266,7 @@ def optimization_task(oracle, start, method='gradient descent', linear_solver='c
         else:
             alpha = one_dim_search(fun, *args)
 
-        if method == 'BFGS':
+        if method == 'BFGS' or method == 'L-BFGS':
             prev_gk = gk
             prev_x = x
 
