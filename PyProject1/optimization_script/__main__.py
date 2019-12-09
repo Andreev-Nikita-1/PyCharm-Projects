@@ -8,7 +8,7 @@ from optimization_script.optimization_method import *
 parser = argparse.ArgumentParser()
 parser.add_argument("--ds_path", help="path to dataset file in .svm format", type=str)
 parser.add_argument("--optimize_method",
-                    help="high-level optimization method, will be one of {'gradient', 'newton', 'hfn'}", type=str)
+                    help="high-level optimization method, will be one of {'gradient', 'newton', 'hfn', 'BFGS', 'L-BFGS'}", type=str)
 parser.add_argument("--line_search",
                     help="linear optimization method, will be one of {'golden_search', 'brent', 'armijo', 'wolfe', 'lipschitz'}",
                     type=str)
@@ -21,6 +21,9 @@ parser.add_argument("--cg_tolerance_policy",
                     type=str)
 parser.add_argument("--cg_tolerance_eta",
                     help="optional key for HFN method; conjugate gradients method tolerance parameter eta", type=float)
+parser.add_argument("--lbfgs_history_size",
+                    help="optional key for L-BFGS method; history size", type=int)
+
 args = parser.parse_args()
 
 
@@ -39,7 +42,16 @@ def main():
     np.random.seed(args.seed)
     X, labels = load_data(args.ds_path)
 
-    method = 'gradient descent' if args.optimize_method == 'gradient' else 'newton'
+    method = 'newton'
+    if args.optimize_method == 'gradient':
+        method = 'gradient descent'
+    elif args.optimize_method == 'newton' or args.optimize_method == 'hfn':
+        method = 'newton'
+    elif args.optimize_method == 'BFGS':
+        method = 'BFGS'
+    elif args.optimize_method == 'L-BFGS':
+        method = 'L-BFGS'
+
     linear_solver = 'cholesky' if args.optimize_method == 'newton' else 'cg'
     solver_kwargs = dict(
         [('eta', args.cg_tolerance_eta), ('policy', args.cg_tolerance_policy)]) if linear_solver == 'cg' else dict([])

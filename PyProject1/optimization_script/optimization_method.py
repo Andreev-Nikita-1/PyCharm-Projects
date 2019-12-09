@@ -121,8 +121,47 @@ def solveCG(h, b, eta=0.5, policy='sqrtGradNorm'):
     return x, hc
 
 
-def optimization_task(oracle, start, method='gradient descent', linear_solver='cg', solver_kwargs=dict([]),
-                      one_dim_search=None, args=(), search_kwargs=dict([]),
+class BFGS:
+    def __init__(self, H0):
+        self.Hk = H0
+
+    def update(self, s, y):
+        sty = np.dot(s, y)
+        Hky = self.Hk.dot(y)
+        sHky = np.outer(s, Hky)
+        self.Hk += (sty + np.dot(y, Hky)) / sty ** 2 * np.outer(
+            s, s) - (sHky + sHky.T) / sty
+
+
+class LBFGS:
+    def __init__(self, m):
+        self.ys = []
+        self.ss = []
+        self.stys = []
+        self.m = m
+
+    def update(self, s, y):
+        self.ss.append(s)
+        self.ys.append(y)
+        self.stys.append(np.dot(s, y))
+        if len(self.ss) > self.m:
+            self.ss = self.ss[1:]
+            self.ys = self.ys[1:]
+            self.stys = self.stys[1:]
+
+    def direction(self, g):
+        stgs = []
+        for y, s, sty in list(zip(self.ys, self.ss, self.stys))[::-1]:
+            stgs.append(np.dot(s, g))
+            g -= y * stgs[-1] / sty
+        g *= self.stys[-1] / np.dot(self.ys[-1], self.ys[-1])
+        for y, s, sty, stg in zip(self.ys, self.ss, self.stys, stgs[::-1]):
+            g += (-np.dot(y, g) + stg) / sty * s
+        return g
+
+
+def optimization_task(oracle, start, method='gradient descent', linear_solver='cg', solver_kwargs=dict([]), H0=None,
+                      m=20, one_dim_search=None, args=(), search_kwargs=dict([]),
                       epsilon=0, max_iter=float('inf'), max_time=float('inf')):
     start_time, k, fc, gc, hc = time.time(), 0, 0, 0, 0
     x = start
@@ -130,9 +169,14 @@ def optimization_task(oracle, start, method='gradient descent', linear_solver='c
     if method == 'gradient descent':
         ord = 1
         if one_dim_search is None:
-            one_dim_search = 'armijo'
+            one_dim_search = 'armiho'
     elif method == 'newton':
         ord = 2
+        if one_dim_search is None:
+            one_dim_search = 'unit step'
+    elif method == 'BFGS' or method == 'L-BFGS':
+        ord = 1
+        init = True
         if one_dim_search is None:
             one_dim_search = 'unit step'
 
@@ -148,6 +192,7 @@ def optimization_task(oracle, start, method='gradient descent', linear_solver='c
             L = L0
 
     while True:
+
         _, gk, hk = oracle(x, *args, order=ord, no_function=True)
         gc += 1
         if ord == 2:
@@ -171,6 +216,22 @@ def optimization_task(oracle, start, method='gradient descent', linear_solver='c
                 hc += oracle_counter
             elif linear_solver == 'cholesky':
                 d = solveCholesky(hk, -gk, **solver_kwargs)
+        elif method == 'BFGS':
+            if init:
+                init = False
+                bfgs = BFGS(H0 if H0 is not None else np.eye(x.shape[0]))
+            else:
+                bfgs.update(x - prev_x, gk - prev_gk)
+            d = -bfgs.Hk.dot(gk)
+
+        elif method == 'L-BFGS':
+            if init:
+                init = False
+                lbfgs = LBFGS(m)
+                d = -gk
+            else:
+                lbfgs.update(x - prev_x, gk - prev_gk)
+                d = -lbfgs.direction(np.copy(gk))
 
         fun = lambda alpha: oracle(x + d * alpha, *args)
 
@@ -204,6 +265,10 @@ def optimization_task(oracle, start, method='gradient descent', linear_solver='c
             fc += oracle_counter
         else:
             alpha = one_dim_search(fun, *args)
+
+        if method == 'BFGS':
+            prev_gk = gk
+            prev_x = x
 
         x = x + d * alpha
 
