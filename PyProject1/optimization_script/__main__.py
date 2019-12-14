@@ -8,7 +8,8 @@ from optimization_script.optimization_method import *
 parser = argparse.ArgumentParser()
 parser.add_argument("--ds_path", help="path to dataset file in .svm format", type=str)
 parser.add_argument("--optimize_method",
-                    help="high-level optimization method, will be one of {'gradient', 'newton', 'hfn', 'BFGS', 'L-BFGS'}", type=str)
+                    help="high-level optimization method, will be one of {'gradient', 'newton', 'hfn', 'BFGS', 'L-BFGS', 'lasso}",
+                    type=str)
 parser.add_argument("--line_search",
                     help="linear optimization method, will be one of {'golden_search', 'brent', 'armijo', 'wolfe', 'lipschitz'}",
                     type=str)
@@ -23,6 +24,8 @@ parser.add_argument("--cg_tolerance_eta",
                     help="optional key for HFN method; conjugate gradients method tolerance parameter eta", type=float)
 parser.add_argument("--lbfgs_history_size",
                     help="optional key for L-BFGS method; history size", type=int)
+parser.add_argument("--lasso_coeff",
+                    help="optional key for lasso method; coefficient l", type=float)
 
 args = parser.parse_args()
 
@@ -51,6 +54,8 @@ def main():
         method = 'BFGS'
     elif args.optimize_method == 'L-BFGS':
         method = 'L-BFGS'
+    elif method == 'lasso':
+        search_kwargs = {'l': args.lasso_coeff}
 
     linear_solver = 'cholesky' if args.optimize_method == 'newton' else 'cg'
     solver_kwargs = dict(
@@ -61,9 +66,12 @@ def main():
     else:
         w0 = np.random.normal(0, 1, X.shape[1])
 
+    oracle = Oracle(X, labels)
+
     sol = optimization_task(oracle, w0, method=method, linear_solver=linear_solver,
                             one_dim_search=args.line_search,
-                            args=[X, labels], epsilon=args.eps,
+                            epsilon=args.eps,
+                            search_kwargs=search_kwargs,
                             solver_kwargs=solver_kwargs
                             )
 

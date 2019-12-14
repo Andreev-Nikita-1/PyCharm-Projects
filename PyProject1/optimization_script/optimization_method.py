@@ -5,75 +5,74 @@ import scipy.linalg
 import scipy.optimize as opt
 
 
-def golden_search_bounded(fun, a0, b0, eps=10 * sys.float_info.epsilon, args=()):
+def golden_search_bounded(fun, a0, b0, eps=10 * sys.float_info.epsilon):
     ratio = (1 + 5 ** 0.5) / 2
     a, b, c, d = a0, b0, (b0 - a0) / ratio + a0, b0 - (b0 - a0) / ratio
-    fc, fd = fun(c, *args), fun(d, *args)
-    onumber = 2
+    fc, fd = fun(c), fun(d)
     while True:
         if b - a <= eps:
-            return c, onumber
+            return c
         if fc < fd:
             c, d, b = a + d - c, c, d
             fd = fc
-            fc = fun(c, *args)
-            onumber += 1
+            fc = fun(c)
         else:
             a, c, d = c, d, b - d + c
             fc = fd
-            fd = fun(d, *args)
-            onumber += 1
+            fd = fun(d)
 
 
-def golden_search(fun, eps=10 * sys.float_info.epsilon, args=()):
-    a, _, b, _, _, _, onumber = opt.bracket(fun, args=args)
+def golden_search(fun, eps=10 * sys.float_info.epsilon):
+    a, _, b, _, _, _, onumber = opt.bracket(fun)
     if b < a:
         a, b = b, a
-    gsb = golden_search_bounded(fun, a, b, eps=eps, args=args)
-    return gsb[0], gsb[1] + onumber
+    return golden_search_bounded(fun, a, b, eps=eps)
 
 
 def armijo(fun, c=0.1, k=10, f0=None, df0=None):
     x = 1
-    oracle = 0
 
     if f0 is None:
         f0 = fun(0)
-        oracle += 1
 
     fx = fun(x)
     fkx = fun(k * x)
-    oracle += 2
 
     while True:
         if fx > f0 + c * df0 * x:
             x /= k
             fkx = fx
             fx = fun(x)
-            oracle += 1
         elif fkx < f0 + k * c * df0 * x:
             x *= k
             fx = fkx
             fkx = fun(k * x)
-            oracle += 1
         else:
             break
 
-    return x, fx, oracle
+    return x, fx
 
 
-def lipschitz(fun, f0, d, L0=1):
+def lipschitz(fun, fk, xk, gk, L0=1, l=1):
     L = L0
-    oracle = 0
-    fx = fun(1 / L)
-    oracle += 1
+    while True:
 
-    while fx > f0 - 1 / (2 * L) * np.dot(d, d):
+        def prox(c):
+            if c > l / L:
+                return c - l / L
+            elif c < -l / L:
+                return c + l / L
+            else:
+                return 0
+
+        y = xk - 1 / L * gk
+        y = np.array([prox(y_i) for y_i in y])
+        fx = fun(y)
+        if fx < fk + np.dot(gk, y - xk) + L / 2 * np.dot(y - xk, y - xk):
+            break
         L *= 2
-        fx = fun(1 / L)
-        oracle += 1
 
-    return L, fx, oracle
+    return y, fx
 
 
 def solveCholesky(h, d, eps=0.0001):
@@ -104,12 +103,10 @@ def solveCG(h, b, eta=0.5, policy='sqrtGradNorm'):
     r = b - h(x0)
     p = r
     x = x0
-    hc = 1
 
     while True:
         rr = r.dot(r)
         hp = h(p)
-        hc += 1
         alpha = rr / np.dot(p, hp)
         x += alpha * p
         r -= alpha * hp
@@ -118,7 +115,7 @@ def solveCG(h, b, eta=0.5, policy='sqrtGradNorm'):
         beta = r.dot(r) / rr
         p = r + beta * p
 
-    return x, hc
+    return x
 
 
 class BFGS:
@@ -161,9 +158,9 @@ class LBFGS:
 
 
 def optimization_task(oracle, start, method='gradient descent', linear_solver='cg', solver_kwargs=dict([]), H0=None,
-                      m=20, one_dim_search=None, args=(), search_kwargs=dict([]),
+                      m=20, one_dim_search=None, search_kwargs=dict([]),
                       epsilon=0, max_iter=float('inf'), max_time=float('inf')):
-    start_time, k, fc, gc, hc = time.time(), 0, 0, 0, 0
+    start_time, k = time.time(), 0
     x = start
 
     if method == 'gradient descent':
@@ -173,37 +170,36 @@ def optimization_task(oracle, start, method='gradient descent', linear_solver='c
     elif method == 'newton':
         ord = 2
         if one_dim_search is None:
-            one_dim_search = 'unit step'
+            one_dim_search = 'constant step'
     elif method == 'BFGS' or method == 'L-BFGS':
         ord = 1
         init = True
         if one_dim_search is None:
-            one_dim_search = 'unit step'
+            one_dim_search = 'constant step'
+    elif method == 'lasso':
+        ord = 1
+        one_dim_search = 'lipschitz'
 
-    f0, g0, _ = oracle(x, *args, order=1)
-    fc += 1
-    gc += 1
+    f0, g0, _ = oracle.evaluate(x, order=1)
     fk = f0
 
     if one_dim_search == 'lipschitz':
-        L, L0 = 2, 0
+        L, L0, l = 2, 0, 0
+        if 'l' in search_kwargs:
+            l = search_kwargs['l']
         if 'L0' in search_kwargs.keys():
             L0 = 2 * search_kwargs['L0']
             L = L0
 
     while True:
 
-        _, gk, hk = oracle(x, *args, order=ord, no_function=True)
-        gc += 1
-        if ord == 2:
-            hc += 1
+        _, gk, hk = oracle.evaluate(x, order=ord, no_function=True)
 
         ratio = np.dot(gk, gk) / np.dot(g0, g0)
 
         if ratio <= epsilon or k > max_iter or time.time() - start_time > max_time:
             if one_dim_search != 'armijo' and one_dim_search != 'wolfe' and one_dim_search != 'lipschitz':
-                fk = oracle(x, *args)
-                fc += 1
+                fk = oracle.evaluate(x)
             break
 
         k += 1
@@ -212,8 +208,7 @@ def optimization_task(oracle, start, method='gradient descent', linear_solver='c
             d = -gk
         elif method == 'newton':
             if linear_solver == 'cg':
-                d, oracle_counter = solveCG(hk, -gk, **solver_kwargs)
-                hc += oracle_counter
+                d = solveCG(hk, -gk, **solver_kwargs)
             elif linear_solver == 'cholesky':
                 d = solveCholesky(hk, -gk, **solver_kwargs)
         elif method == 'BFGS':
@@ -233,38 +228,34 @@ def optimization_task(oracle, start, method='gradient descent', linear_solver='c
                 lbfgs.update(x - prev_x, gk - prev_gk)
                 d = -lbfgs.direction(np.copy(gk))
 
-        fun = lambda alpha: oracle(x + d * alpha, *args)
+        fun = lambda alpha: oracle.evaluate(x + d * alpha)
 
-        if one_dim_search == 'unit step':
+        if one_dim_search == 'constant step':
             alpha = 1
+            if 'alpha' in search_kwargs.keys():
+                alpha = search_kwargs['alpha']
         elif one_dim_search == 'golden_search':
-            alpha, oracle_counter = golden_search(fun, **search_kwargs)
-            fc += oracle_counter
+            alpha = golden_search(fun, **search_kwargs)
         elif one_dim_search == 'brent':
             solution = opt.minimize_scalar(fun)
             alpha = solution['x']
-            fc += solution['nfev']
         elif one_dim_search == 'armijo':
-            alpha, fk, oracle_counter = armijo(fun, **search_kwargs, f0=fk, df0=np.dot(gk, d))
-            fc += oracle_counter
+            alpha, fk = armijo(fun, **search_kwargs, f0=fk, df0=np.dot(gk, d))
         elif one_dim_search == 'wolfe':
-            f_for_wolf = lambda z: oracle(z, *args)
-            g_for_wolf = lambda z: oracle(z, *args, order=1, no_function=True)[1]
+            f_for_wolf = lambda z: oracle.evaluate(z)
+            g_for_wolf = lambda z: oracle.evaluate(z, order=1, no_function=True)[1]
             solution = opt.line_search(f_for_wolf, g_for_wolf, x, d, **search_kwargs, gfk=gk, old_fval=fk)
             alpha = solution[0]
-            if alpha == None:
+            if alpha is None:
                 alpha = 1
-            fc += solution[1]
-            gc += solution[2]
             fk = solution[3]
-            if fk == None:
+            if fk is None:
                 fk = fun(1)
         elif one_dim_search == 'lipschitz':
-            L, fk, oracle_counter = lipschitz(fun, fk, gk, L0=max(L / 2, L0))
-            alpha = 1 / L
-            fc += oracle_counter
+            x, fk = lipschitz(lambda z: oracle.evaluate(z), fk, gk, L0=max(L / 2, L0), l=l)
+            continue
         else:
-            alpha = one_dim_search(fun, *args)
+            alpha = one_dim_search(fun)
 
         if method == 'BFGS' or method == 'L-BFGS':
             prev_gk = gk
@@ -273,4 +264,4 @@ def optimization_task(oracle, start, method='gradient descent', linear_solver='c
         x = x + d * alpha
 
     return dict([('x', x), ('nit', k), ('fun', fk), ('jac', gk), ('time', time.time() - start_time), ('ratio', ratio),
-                 ('nfev', fc), ('njev', gc), ('nhev', hc)])
+                 ('nfev', oracle.fc), ('njev', oracle.gc), ('nhev', oracle.hc)])
