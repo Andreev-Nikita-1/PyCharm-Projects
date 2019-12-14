@@ -8,7 +8,7 @@ from optimization_script.optimization_method import *
 parser = argparse.ArgumentParser()
 parser.add_argument("--ds_path", help="path to dataset file in .svm format", type=str)
 parser.add_argument("--optimize_method",
-                    help="high-level optimization method, will be one of {'gradient', 'newton', 'hfn', 'BFGS', 'L-BFGS', 'lasso}",
+                    help="high-level optimization method, will be one of {'gradient', 'newton', 'hfn', 'BFGS', 'L-BFGS', 'lasso'}",
                     type=str)
 parser.add_argument("--line_search",
                     help="linear optimization method, will be one of {'golden_search', 'brent', 'armijo', 'wolfe', 'lipschitz'}",
@@ -45,7 +45,10 @@ def main():
     np.random.seed(args.seed)
     X, labels = load_data(args.ds_path)
 
+
+
     method = 'newton'
+    search_kwargs = {}
     if args.optimize_method == 'gradient':
         method = 'gradient descent'
     elif args.optimize_method == 'newton' or args.optimize_method == 'hfn':
@@ -54,8 +57,10 @@ def main():
         method = 'BFGS'
     elif args.optimize_method == 'L-BFGS':
         method = 'L-BFGS'
-    elif method == 'lasso':
-        search_kwargs = {'l': args.lasso_coeff}
+    elif args.optimize_method == 'lasso':
+        method = 'lasso'
+        if args.lasso_coeff is not None:
+            search_kwargs = {'l': args.lasso_coeff}
 
     linear_solver = 'cholesky' if args.optimize_method == 'newton' else 'cg'
     solver_kwargs = dict(

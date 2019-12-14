@@ -5,7 +5,7 @@ import scipy.linalg
 import scipy.optimize as opt
 
 
-def golden_search_bounded(fun, a0, b0, eps=10 * sys.float_info.epsilon):
+def golden_search_bounded(fun, a0, b0, eps=100 * sys.float_info.epsilon):
     ratio = (1 + 5 ** 0.5) / 2
     a, b, c, d = a0, b0, (b0 - a0) / ratio + a0, b0 - (b0 - a0) / ratio
     fc, fd = fun(c), fun(d)
@@ -22,8 +22,8 @@ def golden_search_bounded(fun, a0, b0, eps=10 * sys.float_info.epsilon):
             fd = fun(d)
 
 
-def golden_search(fun, eps=10 * sys.float_info.epsilon):
-    a, _, b, _, _, _, onumber = opt.bracket(fun)
+def golden_search(fun, eps=100 * sys.float_info.epsilon):
+    a, b, _, _, _, _, _ = opt.bracket(fun)
     if b < a:
         a, b = b, a
     return golden_search_bounded(fun, a, b, eps=eps)
@@ -53,7 +53,7 @@ def armijo(fun, c=0.1, k=10, f0=None, df0=None):
     return x, fx
 
 
-def lipschitz(fun, fk, xk, gk, L0=1, l=1):
+def lipschitz(fun, fk, xk, gk, L0, l):
     L = L0
     while True:
 
@@ -68,14 +68,15 @@ def lipschitz(fun, fk, xk, gk, L0=1, l=1):
         y = xk - 1 / L * gk
         y = np.array([prox(y_i) for y_i in y])
         fx = fun(y)
+
         if fx < fk + np.dot(gk, y - xk) + L / 2 * np.dot(y - xk, y - xk):
             break
         L *= 2
 
-    return y, fx
+    return y, fx, L
 
 
-def solveCholesky(h, d, eps=0.0001):
+def solveCholesky(h, d, eps=0.01):
     G = np.array([h(x) for x in np.eye(d.shape[0])])
     if np.linalg.matrix_rank(G) < G.shape[0]:
         G = G + eps * np.eye(G.shape[0])
@@ -166,7 +167,7 @@ def optimization_task(oracle, start, method='gradient descent', linear_solver='c
     if method == 'gradient descent':
         ord = 1
         if one_dim_search is None:
-            one_dim_search = 'armiho'
+            one_dim_search = 'armijo'
     elif method == 'newton':
         ord = 2
         if one_dim_search is None:
@@ -185,7 +186,7 @@ def optimization_task(oracle, start, method='gradient descent', linear_solver='c
 
     if one_dim_search == 'lipschitz':
         L, L0, l = 2, 0, 0
-        if 'l' in search_kwargs:
+        if 'l' in search_kwargs.keys():
             l = search_kwargs['l']
         if 'L0' in search_kwargs.keys():
             L0 = 2 * search_kwargs['L0']
@@ -252,7 +253,7 @@ def optimization_task(oracle, start, method='gradient descent', linear_solver='c
             if fk is None:
                 fk = fun(1)
         elif one_dim_search == 'lipschitz':
-            x, fk = lipschitz(lambda z: oracle.evaluate(z), fk, gk, L0=max(L / 2, L0), l=l)
+            x, fk, L = lipschitz(lambda z: oracle.evaluate(z), fk, x, gk, L0=max(L / 2, L0), l=l)
             continue
         else:
             alpha = one_dim_search(fun)
