@@ -2,8 +2,9 @@ import scipy.sparse
 import sklearn.datasets
 import argparse
 import json
-from optimization_script.oracle import *
-from optimization_script.optimization_method import *
+
+from .oracle import *
+from .optimization_method import *
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--ds_path", help="path to dataset file in .svm format", type=str)
@@ -45,20 +46,9 @@ def main():
     np.random.seed(args.seed)
     X, labels = load_data(args.ds_path)
 
-
-
-    method = 'newton'
+    method = args.optimize_method
     search_kwargs = {}
-    if args.optimize_method == 'gradient':
-        method = 'gradient descent'
-    elif args.optimize_method == 'newton' or args.optimize_method == 'hfn':
-        method = 'newton'
-    elif args.optimize_method == 'BFGS':
-        method = 'BFGS'
-    elif args.optimize_method == 'L-BFGS':
-        method = 'L-BFGS'
-    elif args.optimize_method == 'lasso':
-        method = 'lasso'
+    if method == 'lasso':
         if args.lasso_coeff is not None:
             search_kwargs = {'l': args.lasso_coeff}
 

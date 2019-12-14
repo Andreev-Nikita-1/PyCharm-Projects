@@ -23,6 +23,9 @@ class Oracle:
             self.Q = 0
             self.Q_reccurent = Q_reccurent
 
+    def get_start(self):
+        return np.random.randn(self.X.shape[1])
+
     def reload(self):
         inds = np.arange(self.X.shape[0])
         np.random.shuffle(inds)

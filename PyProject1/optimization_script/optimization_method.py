@@ -65,11 +65,23 @@ def lipschitz(fun, fk, xk, gk, L0, l):
             else:
                 return 0
 
+        def diff_prox(d_i, c, i):
+            if c > l / L:
+                return d_i - l / L
+            elif c < -l / L:
+                return d_i + l / L
+            else:
+                return -xk[i]
+
+
         y = xk - 1 / L * gk
+        diff = - 1 / L * gk
+        diff = np.array([diff_prox(diff[i], y[i], i) for i in range(y.shape[0])])
         y = np.array([prox(y_i) for y_i in y])
         fx = fun(y)
-
-        if fx < fk + np.dot(gk, y - xk) + L / 2 * np.dot(y - xk, y - xk):
+        print('----', np.dot(y - xk, y - xk))
+        print('++++', np.dot(diff, diff))
+        if fx < fk + np.dot(gk, diff) + L / 2 * np.dot(diff, diff):
             break
         L *= 2
 
@@ -158,17 +170,18 @@ class LBFGS:
         return g
 
 
-def optimization_task(oracle, start, method='gradient descent', linear_solver='cg', solver_kwargs=dict([]), H0=None,
-                      m=20, one_dim_search=None, search_kwargs=dict([]),
+def optimization_task(oracle, method='gradient', solver_kwargs=dict([]), H0=None,
+                      m=20, one_dim_search=None, search_kwargs={},
                       epsilon=0, max_iter=float('inf'), max_time=float('inf')):
+    iterations, times, grad_ratios = [], [], []
     start_time, k = time.time(), 0
-    x = start
+    x = oracle.get_start()
 
-    if method == 'gradient descent':
+    if method == 'gradient':
         ord = 1
         if one_dim_search is None:
             one_dim_search = 'armijo'
-    elif method == 'newton':
+    elif method == 'newton' or method == 'hfn':
         ord = 2
         if one_dim_search is None:
             one_dim_search = 'constant step'
@@ -193,10 +206,14 @@ def optimization_task(oracle, start, method='gradient descent', linear_solver='c
             L = L0
 
     while True:
-
+        if k == 350:
+            print('a')
         _, gk, hk = oracle.evaluate(x, order=ord, no_function=True)
 
         ratio = np.dot(gk, gk) / np.dot(g0, g0)
+        iterations.append(k)
+        times.append(time.time() - start_time)
+        grad_ratios.append(ratio)
 
         if ratio <= epsilon or k > max_iter or time.time() - start_time > max_time:
             if one_dim_search != 'armijo' and one_dim_search != 'wolfe' and one_dim_search != 'lipschitz':
@@ -205,13 +222,12 @@ def optimization_task(oracle, start, method='gradient descent', linear_solver='c
 
         k += 1
 
-        if method == 'gradient descent':
+        if method == 'gradient':
             d = -gk
+        elif method == 'hfn':
+            d = solveCG(hk, -gk, **solver_kwargs)
         elif method == 'newton':
-            if linear_solver == 'cg':
-                d = solveCG(hk, -gk, **solver_kwargs)
-            elif linear_solver == 'cholesky':
-                d = solveCholesky(hk, -gk, **solver_kwargs)
+            d = solveCholesky(hk, -gk, **solver_kwargs)
         elif method == 'BFGS':
             if init:
                 init = False
@@ -265,4 +281,22 @@ def optimization_task(oracle, start, method='gradient descent', linear_solver='c
         x = x + d * alpha
 
     return dict([('x', x), ('nit', k), ('fun', fk), ('jac', gk), ('time', time.time() - start_time), ('ratio', ratio),
-                 ('nfev', oracle.fc), ('njev', oracle.gc), ('nhev', oracle.hc)])
+                 ('nfev', oracle.fc), ('njev', oracle.gc), ('nhev', oracle.hc), ('i', iterations), ('t', times),
+                 ('r', grad_ratios)])
+
+
+import sklearn.datasets
+from optimization_script.oracle import *
+
+a1a = sklearn.datasets.load_svmlight_file('../data/a1a.txt')
+X = a1a[0]
+dummy = scipy.sparse.csr_matrix([[1] for i in range(X.shape[0])])
+X_a1a = scipy.sparse.hstack([X, dummy])
+labels_a1a = a1a[1]
+a1a = Oracle(X_a1a, labels_a1a)
+
+res1 = optimization_task(a1a,
+                         method='lasso',
+                         max_iter=1000,
+                         search_kwargs={'l': 0.01}
+                         )
