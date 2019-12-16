@@ -29,8 +29,10 @@ def golden_search(fun, eps=100 * sys.float_info.epsilon):
     return golden_search_bounded(fun, a, b, eps=eps)
 
 
-def armijo(fun, c=0.1, k=10, f0=None, df0=None):
+def armijo(fun, c=0.1, k=10, f0=None, df0=None, border=None):
     x = 1
+    if border is not None and x > border:
+        x = border / k ** 2
 
     if f0 is None:
         f0 = fun(0)
@@ -44,51 +46,17 @@ def armijo(fun, c=0.1, k=10, f0=None, df0=None):
             fkx = fx
             fx = fun(x)
         elif fkx < f0 + k * c * df0 * x:
+            if border is not None and x * k > border:
+                break
             x *= k
             fx = fkx
             fkx = fun(k * x)
         else:
             break
-
     return x, fx
 
 
-def lipschitz(fun, fk, xk, gk, L0, l):
-    L = L0
-    while True:
-
-        def prox(c):
-            if c > l / L:
-                return c - l / L
-            elif c < -l / L:
-                return c + l / L
-            else:
-                return 0
-
-        def diff_prox(d_i, c, i):
-            if c > l / L:
-                return d_i - l / L
-            elif c < -l / L:
-                return d_i + l / L
-            else:
-                return -xk[i]
-
-
-        y = xk - 1 / L * gk
-        diff = - 1 / L * gk
-        diff = np.array([diff_prox(diff[i], y[i], i) for i in range(y.shape[0])])
-        y = np.array([prox(y_i) for y_i in y])
-        fx = fun(y)
-        print('----', np.dot(y - xk, y - xk))
-        print('++++', np.dot(diff, diff))
-        if fx < fk + np.dot(gk, diff) + L / 2 * np.dot(diff, diff):
-            break
-        L *= 2
-
-    return y, fx, L
-
-
-def solveCholesky(h, d, eps=0.01):
+def solveCholesky(h, d, eps=0.0001):
     G = np.array([h(x) for x in np.eye(d.shape[0])])
     if np.linalg.matrix_rank(G) < G.shape[0]:
         G = G + eps * np.eye(G.shape[0])
@@ -98,11 +66,6 @@ def solveCholesky(h, d, eps=0.01):
 
 
 def solveCG(h, b, eta=0.5, policy='sqrtGradNorm'):
-    if eta is None:
-        eta = 0.5
-    if policy is None:
-        policy = 'sqrtGradNorm'
-
     b_norm = np.linalg.norm(b)
     if policy == 'sqrtGradNorm':
         tol = min(np.sqrt(b_norm), 0.5)
@@ -112,7 +75,7 @@ def solveCG(h, b, eta=0.5, policy='sqrtGradNorm'):
         tol = eta
 
     eps = tol * b_norm
-    x0 = np.random.random(b.shape[0]) * b_norm
+    x0 = np.random.randn(b.shape[0]) * b_norm
     r = b - h(x0)
     p = r
     x = x0
@@ -120,10 +83,13 @@ def solveCG(h, b, eta=0.5, policy='sqrtGradNorm'):
     while True:
         rr = r.dot(r)
         hp = h(p)
-        alpha = rr / np.dot(p, hp)
+        php = np.dot(p, hp)
+        if php == 0:
+            break
+        alpha = rr / php
         x += alpha * p
         r -= alpha * hp
-        if np.linalg.norm(r) < eps:
+        if np.linalg.norm(r) < eps or rr == 0:
             break
         beta = r.dot(r) / rr
         p = r + beta * p
@@ -139,8 +105,9 @@ class BFGS:
         sty = np.dot(s, y)
         Hky = self.Hk.dot(y)
         sHky = np.outer(s, Hky)
-        self.Hk += (sty + np.dot(y, Hky)) / sty ** 2 * np.outer(
-            s, s) - (sHky + sHky.T) / sty
+        if sty != 0:
+            self.Hk += (sty + np.dot(y, Hky)) / sty ** 2 * np.outer(
+                s, s) - (sHky + sHky.T) / sty
 
 
 class LBFGS:
@@ -170,12 +137,36 @@ class LBFGS:
         return g
 
 
-def optimization_task(oracle, method='gradient', solver_kwargs=dict([]), H0=None,
-                      m=20, one_dim_search=None, search_kwargs={},
-                      epsilon=0, max_iter=float('inf'), max_time=float('inf')):
-    iterations, times, grad_ratios = [], [], []
+def lipschitz(fun, fk, xk, gk, L0, l):
+    L = L0
+    while True:
+        y = xk - 1 / L * gk
+        y = np.sign(y) * np.maximum(np.abs(y) - l, 0)
+        fx = fun(y)
+        d = y - xk
+        if fx < fk + np.dot(gk, d) + L / 2 * np.dot(d, d) or d.dot(d) == 0:
+            break
+        L *= 2
+    return y, fx, L
+
+
+def optimization_task(oracle,
+                      method='gradient',
+                      solver_kwargs={},
+                      H0=None,
+                      m=20,
+                      one_dim_search=None,
+                      search_kwargs={},
+                      l=0,
+                      epsilon=0,
+                      max_iter=float('inf'),
+                      max_time=float('inf')):
+    # iterations, times, grad_ratios = [], [], []
+    # values = []
+    oracle.reset_stats()
     start_time, k = time.time(), 0
-    x = oracle.get_start()
+    start = oracle.get_start()
+    x = start
 
     if method == 'gradient':
         ord = 1
@@ -190,34 +181,34 @@ def optimization_task(oracle, method='gradient', solver_kwargs=dict([]), H0=None
         init = True
         if one_dim_search is None:
             one_dim_search = 'constant step'
-    elif method == 'lasso':
+    elif method == 'l1prox':
         ord = 1
         one_dim_search = 'lipschitz'
 
-    f0, g0, _ = oracle.evaluate(x, order=1)
-    fk = f0
-
     if one_dim_search == 'lipschitz':
-        L, L0, l = 2, 0, 0
-        if 'l' in search_kwargs.keys():
-            l = search_kwargs['l']
+        L, L0 = 2, 0
         if 'L0' in search_kwargs.keys():
             L0 = 2 * search_kwargs['L0']
             L = L0
 
-    while True:
-        if k == 350:
-            print('a')
-        _, gk, hk = oracle.evaluate(x, order=ord, no_function=True)
+    f0, g0, _ = oracle.evaluate(x, order=1)
+    fk = f0
+    g0_norm = np.dot(g0 + l * np.sign(start), g0 + l * np.sign(start))
 
-        ratio = np.dot(gk, gk) / np.dot(g0, g0)
-        iterations.append(k)
-        times.append(time.time() - start_time)
-        grad_ratios.append(ratio)
+    while True:
+
+        f_, gk, hk = oracle.evaluate(x, order=ord, no_function=True)
+        # values.append(fk + l * np.abs(x).sum())
+        ratio = np.dot(gk, gk) / g0_norm
+        if method == 'l1prox':
+            subg = gk - np.sign(gk) * np.minimum(np.abs(gk), l) * (x == 0) + l * np.sign(x)
+            ratio = subg.dot(subg) / g0_norm
+
+        # iterations.append(k)
+        # times.append(time.time() - start_time)
+        # grad_ratios.append(ratio)
 
         if ratio <= epsilon or k > max_iter or time.time() - start_time > max_time:
-            if one_dim_search != 'armijo' and one_dim_search != 'wolfe' and one_dim_search != 'lipschitz':
-                fk = oracle.evaluate(x)
             break
 
         k += 1
@@ -235,7 +226,6 @@ def optimization_task(oracle, method='gradient', solver_kwargs=dict([]), H0=None
             else:
                 bfgs.update(x - prev_x, gk - prev_gk)
             d = -bfgs.Hk.dot(gk)
-
         elif method == 'L-BFGS':
             if init:
                 init = False
@@ -246,7 +236,6 @@ def optimization_task(oracle, method='gradient', solver_kwargs=dict([]), H0=None
                 d = -lbfgs.direction(np.copy(gk))
 
         fun = lambda alpha: oracle.evaluate(x + d * alpha)
-
         if one_dim_search == 'constant step':
             alpha = 1
             if 'alpha' in search_kwargs.keys():
@@ -257,10 +246,11 @@ def optimization_task(oracle, method='gradient', solver_kwargs=dict([]), H0=None
             solution = opt.minimize_scalar(fun)
             alpha = solution['x']
         elif one_dim_search == 'armijo':
-            alpha, fk = armijo(fun, **search_kwargs, f0=fk, df0=np.dot(gk, d))
+            alpha, fk = armijo(fun, **search_kwargs, f0=fk, df0=np.dot(gk, d), border=oracle.max_alpha())
         elif one_dim_search == 'wolfe':
             f_for_wolf = lambda z: oracle.evaluate(z)
-            g_for_wolf = lambda z: oracle.evaluate(z, order=1, no_function=True)[1]
+            g_for_wolf = lambda z: oracle.evaluate(
+                z, order=1, no_function=True)[1]
             solution = opt.line_search(f_for_wolf, g_for_wolf, x, d, **search_kwargs, gfk=gk, old_fval=fk)
             alpha = solution[0]
             if alpha is None:
@@ -280,23 +270,53 @@ def optimization_task(oracle, method='gradient', solver_kwargs=dict([]), H0=None
 
         x = x + d * alpha
 
-    return dict([('x', x), ('nit', k), ('fun', fk), ('jac', gk), ('time', time.time() - start_time), ('ratio', ratio),
-                 ('nfev', oracle.fc), ('njev', oracle.gc), ('nhev', oracle.hc), ('i', iterations), ('t', times),
-                 ('r', grad_ratios)])
+    if one_dim_search != 'armijo' and one_dim_search != 'wolfe' and one_dim_search != 'lipschitz':
+        fk = oracle.evaluate(x)
+    return dict([('x', x), ('nit', k), ('fun', fk), ('jac', gk),
+                 ('time', time.time() - start_time), ('ratio', ratio), ('start', start),
+                 ('nfev', oracle.fc), ('njev', oracle.gc), ('nhev', oracle.hc),
+                 # ('i', iterations), ('t', times), ('r', grad_ratios),
+                 # ('v', values),
+                 ('null_components', (x == 0).sum())])
 
 
-import sklearn.datasets
-from optimization_script.oracle import *
+def SGD(oracle,
+        alpha=0.1,
+        harmonic_step=False,
+        Q_reccurents=[],
+        batch_size=20,
+        max_iter=float('inf'),
+        max_time=float('inf')):
+    iterations, times, rec_values = [], [], []
+    oracle.reset_stats()
+    oracle.batch_size = batch_size
+    oracle.reload()
+    start_time, k = time.time(), 0
+    start = oracle.get_start()
+    x = start
 
-a1a = sklearn.datasets.load_svmlight_file('../data/a1a.txt')
-X = a1a[0]
-dummy = scipy.sparse.csr_matrix([[1] for i in range(X.shape[0])])
-X_a1a = scipy.sparse.hstack([X, dummy])
-labels_a1a = a1a[1]
-a1a = Oracle(X_a1a, labels_a1a)
+    f0, g0, _ = oracle.evaluate(x, order=1)
+    gk = g0
+    Q = [f0 for _ in Q_reccurents]
+    while True:
 
-res1 = optimization_task(a1a,
-                         method='lasso',
-                         max_iter=1000,
-                         search_kwargs={'l': 0.01}
-                         )
+        rec_values.append(np.copy(Q))
+        iterations.append(k)
+        times.append(time.time() - start_time)
+        if k > max_iter or time.time() - start_time > max_time:
+            break
+
+        k += 1
+        if harmonic_step:
+            x = x - gk * alpha / k
+        else:
+            x = x - gk * alpha
+        fk, gk, _ = oracle.evaluate(x, order=1, no_function=True, stochastic=True)
+        for i in range(len(Q_reccurents)):
+            Q[i] = Q_reccurents[i](fk, Q[i])
+
+    fun, jak, _ = oracle.evaluate(x, order=1)
+    return dict([('x', x), ('nit', k), ('fun', fun), ('jac', jak), ('ratio', jak.dot(jak) / g0.dot(g0)),
+                 ('time', time.time() - start_time), ('start', start), ('nfev', oracle.fc),
+                 ('njev', oracle.gc), ('nhev', oracle.hc), ('i', iterations),
+                 ('t', times), ('rec', rec_values), ('null_components', (x == 0).sum())])
