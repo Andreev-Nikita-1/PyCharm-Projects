@@ -103,20 +103,19 @@ def get_letters():
 #         return m / (36 * m + s1)
 
 
-with open("words_to_numbers.json", encoding='utf-8') as f:
-    words_to_num = json.loads(f.read())
-
-words_nums = list(words_to_num.keys())
-
-
 def control_number(numbers):
     sum = np.sum([3 * numbers[i] if i % 2 == 0 else numbers[i] for i in range(len(numbers))])
     result = 10 - sum % 10
     return result if result < 10 else 0
 
 
-def answer(probs):
-    answer_words = (sorted(probs[-1].items(), key=lambda x: x[1]['b'] + x[1]['nb'], reverse=True)[0][0]).split(' ')
+def answer(beams):
+    with open("words_to_numbers.json", encoding='utf-8') as f:
+        words_to_num = json.loads(f.read())
+    words_nums = list(words_to_num.keys())
+
+    answer_words = (sorted(beams[-1].items(), key=lambda x: x[1]['b'] + x[1]['nb'], reverse=True)[0][0]).split(' ')
+    # print(' '.join(answer_words))
     answer_words_num = [words_nums[np.argmin([Levenshtein.distance(w, wn) for wn in words_nums])] for w in answer_words]
     answer = [words_to_num[wn] for wn in answer_words_num]
     if answer[-1] != control_number(answer[:-1]):
@@ -131,28 +130,19 @@ def answer(probs):
                     if lev_dist < min:
                         min = lev_dist
                         answer_new = answer_temp
+        # print('old' + "".join([str(n) for n in answer]))
+        # print('new' + "".join([str(n) for n in answer_new]))
         answer = answer_new
     return answer
 
 
 letters = get_letters()[:-1]
-data = np.load("PR_first70.npy")
-for v in data[:4]:
-    print("".join([str(n) for n in answer(beam_search(np.exp(v), letters, -1, 15))]))
+for i in range(20):
+    v = np.load('data/Por_probs/' + str(i + 1) + '.npy')
+    print(
+        "".join([str(n) for n in answer(beam_search(np.exp(v), letters, -1, 15))])
+    )
 
-# mats = np.exp(np.load('PR_first70.npy'))
-# for mat in mats:
-#     inds = [0] + list(range(2, 36))
-#     mat = mat[:, inds]
-#     ans1 = beam_search(mat, get_letters()[:-1], -1, 10)
-#     ans2 = beam_search(mat, letters, -1, 10, model=model)
-#     print('-m', answer(ans1))
-#     print('+m', answer(ans2))
-
-# print([letters[np.argmax(x)] for x in mat])
-#
-# for a in ans:
-#     print(sorted(a.items(), key=lambda d: d[1]['b'] + d[1]['nb'], reverse=True)[0][0])
 #
 #
 #

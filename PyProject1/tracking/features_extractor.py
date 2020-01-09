@@ -52,17 +52,7 @@ def show(result):
     letters = get_letters()
     print("".join([letters[np.argmax(p)] for p in result if letters[np.argmax(p)] != '']))
 
-# l = 896
-# tensor = []
-# for i in range(51, 71):
-#     result = np.loadtxt('../data/Post_Russia_Recordings_csv/csvs/' + str(i) + '.csv', delimiter=',', dtype=np.float32)
-#     result = np.concatenate([result, np.zeros(shape=(l - result.shape[0], 80), dtype=np.float32)], axis=0)
-#     tensor.append(result.T.reshape(80, -1))
-# tensor = np.array(tensor)
-#
-# # tensor = np.loadtxt('1wav.csv', delimiter=',', dtype=np.float32).T.reshape(1, 80, -1)
-# Nw = Network()
-# res = Nw.apply(tensor)
+
 
 #
 #
