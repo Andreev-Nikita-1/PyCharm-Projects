@@ -272,7 +272,7 @@ def optimization_task(oracle,
 
     if one_dim_search != 'armijo' and one_dim_search != 'wolfe' and one_dim_search != 'lipschitz':
         fk = oracle.evaluate(x)
-    return dict([('x', x), ('nit', k), ('fun', fk), ('jac', gk),
+    return dict([('x', x), ('nit', k), ('fun', fk + l * np.abs(x).sum()), ('jac', gk),
                  ('time', time.time() - start_time), ('ratio', ratio), ('start', start),
                  ('nfev', oracle.fc), ('njev', oracle.gc), ('nhev', oracle.hc),
                  # ('i', iterations), ('t', times), ('r', grad_ratios),

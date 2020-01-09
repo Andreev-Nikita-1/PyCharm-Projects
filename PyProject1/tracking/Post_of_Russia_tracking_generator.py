@@ -29,10 +29,12 @@ def control_number(numbers):
 
 def generate_tracking_number():
     result = index_generator() + month_generator() + numbers_generator()
-    numbers = [ord(c) for c in result]
+    numbers = [int(c) for c in result]
     return result + str(control_number(numbers))
 
 
-f = open("data/Post_of_Russia_track_numbers.txt", 'w')
-for i in range(1, 100):
-    f.write(str(i) + " " + generate_tracking_number() + '\n')
+# f = open("data/Post_of_Russia_track_numbers1.txt", 'w')
+# for i in range(1, 100):
+#     f.write(str(i) + " " + generate_tracking_number() + '\n')
+#
+# f.close()

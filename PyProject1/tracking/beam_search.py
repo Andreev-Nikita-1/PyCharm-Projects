@@ -1,7 +1,8 @@
 import numpy as np
 # from tracking.features_extractor import *
 import json
-from nltk.util import ngrams
+# from nltk.util import ngrams
+import Levenshtein
 
 
 def beam_search(mat, alphabet, blank_index, k, model=lambda x: 1):
@@ -35,30 +36,25 @@ def beam_search(mat, alphabet, blank_index, k, model=lambda x: 1):
     return Probs
 
 
-def answer(probs):
-    # for i in range(len(probs)):
-    return sorted(probs[-1].items(), key=lambda x: x[1]['b'] + x[1]['nb'], reverse=True)[0][0]
-
-
 def get_letters():
     letters = []
     fi = open("letters.lst", 'r', encoding='utf8')
     for line in fi.readlines():
-        if line != '-\n':
-            letters.append(line[0])
+        # if line != '-\n':
+        letters.append(line[0])
     return letters
 
 
-with open("words_to_numbers.json", encoding='utf-8') as f:
-    words_to_num = json.loads(f.read())
-words0 = words_to_num.keys()
-words = []
-for w in words0:
-    if words_to_num[w] < 10 and words_to_num[w] > 0:
-        for _ in range(9):
-            words.append(w)
-    else:
-        words.append(w)
+# with open("words_to_numbers.json", encoding='utf-8') as f:
+#     words_to_num = json.loads(f.read())
+# words0 = words_to_num.keys()
+# words = []
+# for w in words0:
+#     if words_to_num[w] < 10 and words_to_num[w] > 0:
+#         for _ in range(9):
+#             words.append(w)
+#     else:
+#         words.append(w)
 
 # d = {}
 # for l1 in letters:
@@ -67,31 +63,27 @@ for w in words0:
 #             s = 0
 #             for w in words:
 #                 inds = w.findall(l1 + l2 + l3)
-m = 1
-grams_2 = []
-for w in words:
-    grams_2.extend(list(ngrams(w + ' ', 2)))
-grams_1 = []
-for w in words:
-    grams_1.extend(list(ngrams(w, 1)))
+# m = 1
+# grams_2 = []
+# for w in words:
+#     grams_2.extend(list(ngrams(w + ' ', 2)))
+# grams_1 = []
+# for w in words:
+#     grams_1.extend(list(ngrams(w, 1)))
+#
+# d = {g2: 0 for g2 in grams_2}
+# for g2 in grams_2:
+#     d[g2] += 1
+# s = {g1: 0 for g1 in grams_1}
+# for g1 in grams_1:
+#     s[g1] += 1
+# for k in d.keys():
+#     d[k] = (d[k] + m / 36) / s[(k[0],)] + m
+# s1 = sum(s.values())
+# for k in s.keys():
+#     s[k] /= (s1 + m)
+#
 
-d = {g2: 0 for g2 in grams_2}
-for g2 in grams_2:
-    d[g2] += 1
-s = {g1: 0 for g1 in grams_1}
-for g1 in grams_1:
-    s[g1] += 1
-for k in d.keys():
-    d[k] = (d[k] + m / 36) / s[(k[0],)] + m
-s1 = sum(s.values())
-for k in s.keys():
-    s[k] /= (s1 + m)
-
-# data = np.load("PR_first70.npy")
-
-
-# for v in data:
-#     print(answer(beam_search(np.exp(v), letters, -1, 15)))
 
 # D = Decoder()
 # input = np.exp((Waw_to_probs('data/Post_Russia_Recordings_wav/1.wav')))
@@ -99,43 +91,79 @@ for k in s.keys():
 # input = np.exp(Waw_to_probs('data/recordings/lasso.wav'))
 # answer(D.beam_search(input, get_letters()[:-1], -1, 10))
 
-def model(w):
-    if w == '':
-        return 0
-    x, y = w[:-1], w[-1]
-    if x == '':
-        return 1
-    elif x != '' and (x[-1], y) in d.keys():
-        return d[(x[-1], y)]
-    else:
-        return m / (36 * m + s1)
+# def model(w):
+#     if w == '':
+#         return 0
+#     x, y = w[:-1], w[-1]
+#     if x == '':
+#         return 1
+#     elif x != '' and (x[-1], y) in d.keys():
+#         return d[(x[-1], y)]
+#     else:
+#         return m / (36 * m + s1)
+
+
+with open("words_to_numbers.json", encoding='utf-8') as f:
+    words_to_num = json.loads(f.read())
+
+words_nums = list(words_to_num.keys())
+
+
+def control_number(numbers):
+    sum = np.sum([3 * numbers[i] if i % 2 == 0 else numbers[i] for i in range(len(numbers))])
+    result = 10 - sum % 10
+    return result if result < 10 else 0
+
+
+def answer(probs):
+    answer_words = (sorted(probs[-1].items(), key=lambda x: x[1]['b'] + x[1]['nb'], reverse=True)[0][0]).split(' ')
+    answer_words_num = [words_nums[np.argmin([Levenshtein.distance(w, wn) for wn in words_nums])] for w in answer_words]
+    answer = [words_to_num[wn] for wn in answer_words_num]
+    if answer[-1] != control_number(answer[:-1]):
+        min = 1000000
+        answer_new = answer_words
+        for i in range(len(answer)):
+            for n in range(10):
+                answer_temp = np.copy(answer)
+                answer_temp[i] = n
+                if answer_temp[-1] == control_number(answer_temp[:-1]):
+                    lev_dist = Levenshtein.distance(str(n), answer_words[i])
+                    if lev_dist < min:
+                        min = lev_dist
+                        answer_new = answer_temp
+        answer = answer_new
+    return answer
 
 
 letters = get_letters()[:-1]
-mats = np.exp(np.load('PR_first70.npy'))
-for mat in mats:
-    inds = [0] + list(range(2, 36))
-    mat = mat[:, inds]
-    ans1 = beam_search(mat, get_letters()[:-1], -1, 10)
-    ans2 = beam_search(mat, letters, -1, 10, model=model)
-    print('-m', answer(ans1))
-    print('+m', answer(ans2))
+data = np.load("PR_first70.npy")
+for v in data[:4]:
+    print("".join([str(n) for n in answer(beam_search(np.exp(v), letters, -1, 15))]))
 
-    # print([letters[np.argmax(x)] for x in mat])
-    #
-    # for a in ans:
-    #     print(sorted(a.items(), key=lambda d: d[1]['b'] + d[1]['nb'], reverse=True)[0][0])
-    #
-    #
-    #
-    #
-    #
-    #
-    #
-    #
-    #
-    #
-    #
-    #
-    #
-    #
+# mats = np.exp(np.load('PR_first70.npy'))
+# for mat in mats:
+#     inds = [0] + list(range(2, 36))
+#     mat = mat[:, inds]
+#     ans1 = beam_search(mat, get_letters()[:-1], -1, 10)
+#     ans2 = beam_search(mat, letters, -1, 10, model=model)
+#     print('-m', answer(ans1))
+#     print('+m', answer(ans2))
+
+# print([letters[np.argmax(x)] for x in mat])
+#
+# for a in ans:
+#     print(sorted(a.items(), key=lambda d: d[1]['b'] + d[1]['nb'], reverse=True)[0][0])
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
