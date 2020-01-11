@@ -4,7 +4,7 @@ import scipy.io.wavfile
 import json
 import onnx
 import onnxruntime
-import kaldi_features
+# import kaldi_features
 
 
 class KaldiFeaturesExtractor:

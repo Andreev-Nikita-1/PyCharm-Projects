@@ -12,7 +12,7 @@ def index_generator():
 
 
 def month_generator():
-    n = np.random.randint(1, 100)
+    n = np.random.randint(20, 51)
     return '0' + str(n) if n < 10 else str(n)
 
 
@@ -33,8 +33,8 @@ def generate_tracking_number():
     return result + str(control_number(numbers))
 
 
-# f = open("data/Post_of_Russia_track_numbers1.txt", 'w')
-# for i in range(1, 100):
-#     f.write(str(i) + " " + generate_tracking_number() + '\n')
-#
-# f.close()
+f = open("data/Post_of_Russia_track_numbers2.txt", 'w')
+for i in range(1, 1000):
+    f.write(generate_tracking_number() + '\n')
+
+f.close()
