@@ -41,15 +41,6 @@ def beam_search(mat, alphabet=get_letters(), blank_index=-1, k=30, model=lambda 
     return sorted(Probs[-1].items(), key=lambda x: x[1]['b'] + x[1]['nb'], reverse=True)[0][0]
 
 
-def control_number_checking(numbers_str, control_number):
-    numbers = [int(s) for s in numbers_str]
-    return control_number(numbers[:-1]) == numbers[-1]
-
-
-def control_number_por(numbers):
-    sum = np.sum([3 * numbers[i] if i % 2 == 0 else numbers[i] for i in range(len(numbers))])
-    result = 10 - sum % 10
-    return result if result < 10 else 0
 
 
 
