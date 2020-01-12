@@ -2,9 +2,11 @@ import numpy as np
 import scipy
 import scipy.io.wavfile
 import json
+import os
 import onnx
 import onnxruntime
-# import kaldi_features
+import kaldi_features
+from tracking.beam_search import *
 
 
 class KaldiFeaturesExtractor:
@@ -40,19 +42,25 @@ def Waw_to_probs(filename, configfile='features_config.json'):
     return Nw.apply(tensor).reshape(-1, 36)
 
 
-def get_letters():
-    letters = []
-    fi = open("letters.lst", 'r', encoding='utf8')
-    for line in fi.readlines():
-        letters.append(line[0])
-    return letters
+def nw_applyer():
+    dir = '/home/nikita/tracking/2'
+    files1 = os.listdir(dir)
+    for folder in files1:
+        print(folder)
+        files = os.listdir(dir + '/' + folder)
+        try:
+            os.mkdir('/home/nikita/PycharmProjects/PyProject1/tracking/data/Ems_toloka/'+folder)
+        except:
+            continue
+        for file in files:
+            print('  ', file)
+            mat = Waw_to_probs(dir + '/' + folder + '/' + file)
+            np.save('data/Ems_toloka/' + folder + '/' + file[:-4] + '.npy', mat)
 
 
 def show(result):
     letters = get_letters()
     print("".join([letters[np.argmax(p)] for p in result if letters[np.argmax(p)] != '']))
-
-
 
 #
 #

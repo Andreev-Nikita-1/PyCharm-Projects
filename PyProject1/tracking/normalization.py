@@ -1,7 +1,7 @@
 import numpy as np
 import json
 import Levenshtein
-from .beam_search import *
+from tracking.beam_search import *
 
 
 def answer(beam):
