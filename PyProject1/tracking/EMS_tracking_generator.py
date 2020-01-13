@@ -50,7 +50,8 @@ def generate_tracking_number():
         control_number(numbers)) + country_generator()
 
 
-f = open("data/EMS_track_numbers2.txt", 'w')
-for i in range(1, 1000):
-    print(i)
-    f.write(generate_tracking_number() + '\n')
+def generate():
+    f = open("data/EMS_track_numbers2.txt", 'w')
+    for i in range(1, 1000):
+        print(i)
+        f.write(generate_tracking_number() + '\n')
