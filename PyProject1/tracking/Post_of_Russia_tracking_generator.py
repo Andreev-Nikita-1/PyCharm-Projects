@@ -33,8 +33,8 @@ def generate_tracking_number():
     return result + str(control_number(numbers))
 
 
-f = open("data/Post_of_Russia_track_numbers2.txt", 'w')
-for i in range(1, 1000):
-    f.write(generate_tracking_number() + '\n')
-
-f.close()
+# f = open("data/Post_of_Russia_track_numbers2.txt", 'w')
+# for i in range(1, 1000):
+#     f.write(generate_tracking_number() + '\n')
+#
+# f.close()
