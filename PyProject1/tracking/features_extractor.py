@@ -49,7 +49,7 @@ def nw_applyer():
         print(folder)
         files = os.listdir(dir + '/' + folder)
         try:
-            os.mkdir('/home/nikita/PycharmProjects/PyProject1/tracking/data/Ems_toloka/'+folder)
+            os.mkdir('/home/nikita/PycharmProjects/PyProject1/tracking/data/Ems_toloka/' + folder)
         except:
             continue
         for file in files:
