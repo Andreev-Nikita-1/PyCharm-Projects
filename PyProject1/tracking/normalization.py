@@ -53,10 +53,10 @@ def numbers_norm(numbers_words):
     if reduced1 == []:
         digits = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
         for digit in digits:
-            reduced1 += reducing([digit] + answer_num, expected_length=5 if service == 'ems' else 14)
+            reduced1 += reducing([digit] + answer_num, expected_length=9 if service == 'ems' else 14)
             for i in range(len(answer_num)):
                 reduced1 += reducing(answer_num[:i + 1] + [digit] + answer_num[i + 1:],
-                                     expected_length=5 if service == 'ems' else 14)
+                                     expected_length=9 if service == 'ems' else 14)
         reduced1 = [r for r in reduced1 if control_number_checking(r) and index_checking(r)]
         reduced1 = list(np.unique(reduced1))
     return reduced1
@@ -200,7 +200,7 @@ def type_norm(words):
                     pairs.append((l1 + l2, o1 + o2))
     pairs.sort(key=lambda x: Levenshtein.distance(x[1], s))
     min_dist = Levenshtein.distance(pairs[0][1], s)
-    return [p[0] for p in pairs if Levenshtein.distance(p[1], s) - min_dist <= 0]
+    return list(np.unique([p[0] for p in pairs if Levenshtein.distance(p[1], s) - min_dist <= 0]))
 
 
 def country_norm(words):
@@ -216,7 +216,16 @@ def country_norm(words):
                     pairs.append((l1 + l2, o1 + o2))
     pairs.sort(key=lambda x: Levenshtein.distance(x[1], s))
     min_dist = Levenshtein.distance(pairs[0][1], s)
-    return [p[0] for p in pairs if Levenshtein.distance(p[1], s) - min_dist <= 0 and p[0] in countries]
+    ans = [p[0] for p in pairs if
+           Levenshtein.distance(p[1], s) - min_dist <= 0 and
+           p[0] in countries]
+    k = 0
+    while ans == []:
+        k += 1
+        ans = [p[0] for p in pairs if
+               Levenshtein.distance(p[1], s) - min_dist <= k and
+               p[0] in countries]
+    return list(np.unique(ans))
 
 
 def ems_norm(beam):
@@ -239,3 +248,85 @@ def ems_norm(beam):
     return ts, ns, cs
 
 
+def control():
+    correct = ["CA007433791SK(1).npy", "CA007433791SK.npy", "CA032156295RU.npy", "CA460681341AT(1).npy",
+               "CA460681341AT.npy", "CB001324705RU.npy", "CC001848257AM(1).npy", "CC001848257AM.npy",
+               "CC015274068ES.npy", "CC015308345ES(1).npy", "CC015308345ES.npy", "CC015308345IC(1).npy",
+               "CC015308345IC.npy", "CC060510876IL.npy", "CC066204605IL.npy", "CD389708309JP.npy",
+               "CD532874587NL(1).npy", "CD532874587NL.npy", "CE384308975BE(1).npy", "CE384308975BE.npy",
+               "CF190999356DE(1).npy", "CF190999356DE.npy", "CG002327031IS(1).npy", "CG002327031IS(2).npy",
+               "CG002327031IS.npy", "CG014604718DE.npy", "CG103316599LT(1).npy", "CG103316599LT.npy",
+               "CH080033447US.npy", "CH081445532US.npy", "CH108815211AU(1).npy", "CH108815211AU.npy",
+               "CJ003862203RU.npy", "CK068015119DE.npy", "CL001191142RU.npy", "CL056436176JP.npy",
+               "CO821284605DE(1).npy", "CO821284605DE.npy", "CV033885375CZ(1).npy", "CV033885375CZ.npy",
+               "CX427163343US.npy", "CY114763116US(1).npy", "CY114763116US.npy", "EE005074800RU.npy",
+               "EE790557156TW(1).npy", "EE790557156TW.npy", "EF014887886RU(1).npy", "EF014887886RU(2).npy",
+               "EF014887886RU.npy", "EH004852600US.npy", "EP056592600RU.npy", "EP073906229RU.npy",
+               "EW001430412IT(1).npy", "EW001430412IT.npy", "EZ188779657US(2).npy", "EZ188779657US.npy",
+               "LG618690024GB.npy", "LO122677706CN.npy", "LS824805509CH(2).npy", "LS824805509CH.npy",
+               "LS890460115CH.npy", "LZ432379988US(1).npy", "LZ432379988US.npy", "LZ497696959IC(1).npy",
+               "LZ497696959IC.npy", "RA019477640RU.npy", "RA253321807FI.npy", "RA259640517FI.npy", "RA612153932UA.npy",
+               "RB012363705RU.npy", "RB601208140SG(1).npy", "RB601208140SG.npy", "RB791356155SG(2).npy",
+               "RB791356155SG.npy", "RC092107717IT(1).npy", "RC092107717IT.npy", "RC727913178RG.npy",
+               "RD009172569HK.npy", "RD213349651SE.npy", "RD331395160IN.npy", "RE540161296UA.npy", "RE684604472GR.npy",
+               "RF020723158UA.npy", "RG973774831CN.npy", "RP019120314NL.npy", "RP900199158SG.npy", "RQ004050118RU.npy",
+               "RQ020905632CY.npy", "RQ108337176UZ.npy", "RQ108337176UZ9(1).npy", "RR000396224GE.npy",
+               "RR061424096BY.npy", "RR170116017TH.npy", "RR321763837PL.npy", "RS002497336MN.npy",
+               "RU480548222HK(2).npy", "RU480548222HK.npy", "RV168615668CN.npy", "RV199755489CN(2).npy",
+               "RV199755489CN.npy", "RX422387137CN.npy", "RY009826924HK(1).npy", "RY009826924HK(2).npy",
+               "RY009826924HK.npy", "RZ022677306LV.npy", "UA789445529HK.npy", "UB082931076HK.npy", "UC460345146YP.npy",
+               "UR521770422CN.npy", "VI629577860CN.npy", "ZA502560528LV(2).npy", "ZA502560528LV.npy",
+               "ZA523577679LV.npy", "ZB020503497HK.npy", "ZB021478900HK(1).npy", "ZB021478900HK.npy",
+               "ZC008498768HK.npy", "LL136789702CN.npy", "RP731131053CN.npy", "LL136789702CN(2).npy",
+               "RP677676920CN.npy", "RA010477280JP.npy", "RP731131053CN(1).npy", "LO122677706CN(2).npy",
+               "LC004077464CN.npy", "za669962194hk.npy", "UH879243837WS.npy", "za669962194hk(2).npy",
+               "CT616989794CN(2).npy", "UH879243837WS(2).npy", "ZA123456789HK.npy", "CT616989794CN.npy"]
+    folder = 'data/control_set'
+    files = os.listdir(folder)
+    out = open("data/control_out.txt", "w")
+    tr, fs = 0, 0
+    for file in set(files) - set(correct):
+        real = file[:13].upper()
+        nb = [int(s) for s in real[2:11]]
+        if not control_number_ems(nb[:-1]) == nb[-1]:
+            out.write('\"' + file + '\"' + ',')
+            continue
+        mat = np.load(folder + '/' + file)
+        beam = beam_search(mat)
+        letters = get_letters() + ['|']
+
+        ts, ns, cs = ems_norm(beam)
+        try:
+            ans = real[:2] in ts and real[2:11] in ns and real[-2:] in cs
+            # out.write(real + ' ' + ts[0] + ns[0] + cs[0] + '\n')
+            if ans:
+                out.write('\"' + file + '\"' + ',')
+                tr += 1
+            else:
+                print()
+                if real[:2] not in ts:
+                    print('t', end=' ')
+                if real[2:11] not in ns:
+                    print('n', end=' ')
+                if real[-2:] not in cs:
+                    print('c')
+                print("".join([letters[np.argmax(p)] for p in mat if letters[np.argmax(p)] != '']))
+                print(beam)
+                # print(ans, real)
+                fs += 1
+                print(real, ts, ns, cs)
+        except:
+            fs += 1
+            print(real, ts, ns, cs)
+    # print(tr / (tr + fs))
+
+#
+#
+#
+
+
+#
+#
+#
+#
+#
