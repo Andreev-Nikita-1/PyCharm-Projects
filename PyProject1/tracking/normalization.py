@@ -3,9 +3,6 @@ import json
 import Levenshtein
 from tracking.beam_search import *
 import os
-import tensorflow.compat.v1 as tf
-
-tf.disable_v2_behavior()
 
 
 def index_checking(numbers_str, service='ems'):
@@ -109,7 +106,7 @@ def type_norm(words):
                     pairs.append((l1 + l2, o1 + o2))
     pairs.sort(key=lambda x: Levenshtein.distance(x[1], s))
     min_dist = Levenshtein.distance(pairs[0][1], s)
-    return list(np.unique([p[0] for p in pairs if Levenshtein.distance(p[1], s) - min_dist <= 0]))
+    return list([p[1] for p in pairs if Levenshtein.distance(p[1], s) - min_dist <= 0])
 
 
 def country_norm(words):
@@ -125,7 +122,7 @@ def country_norm(words):
                     pairs.append((l1 + l2, o1 + o2))
     pairs.sort(key=lambda x: Levenshtein.distance(x[1], s))
     min_dist = Levenshtein.distance(pairs[0][1], s)
-    ans = [p[0] for p in pairs if
+    ans = [p[1] for p in pairs if
            Levenshtein.distance(p[1], s) - min_dist <= 0 and
            p[0] in countries]
     k = 0
@@ -137,7 +134,29 @@ def country_norm(words):
     return list(np.unique(ans))
 
 
-def ems_norm(beam):
+def two_letters_in_russian(s):
+    A, B = s[0], s[1]
+    with open("letters_to_eng.json", encoding='utf-8') as f:
+        lte = json.loads(f.read())
+    ans = []
+    for p1 in lte[A]:
+        for p2 in lte[B]:
+            ans.append(p1 + p2)
+    return ans
+
+
+def get_types_list():
+    types = ['R', 'L', 'V', 'C', 'E', 'U', 'Z']
+    letters = [chr(ord('A') + i) for i in range(26)]
+    return [A + B for A in types for B in letters]
+
+
+def get_countries_list():
+    return np.load("country_keys.npy")
+
+
+def ems_norm(mat):
+    beam = beam_search(mat)
     with open("words_to_numbers.json", encoding='utf-8') as f:
         words_to_num = json.loads(f.read())
     words_nums = list(words_to_num.keys())
@@ -150,10 +169,30 @@ def ems_norm(beam):
     numbers_words = answer_words[first_num:len(ds) - last_num]
     type_words = answer_words[:first_num]
     country_words = answer_words[len(ds) - last_num:]
-    ts = type_norm(type_words)
+    type_moment = np.argmax([ctc_prob(" ".join(type_words), mat[:i]) for i in range(100)])
+    country_moment = np.argmax([ctc_prob(" ".join(type_words), mat[-i:]) for i in range(100)])
+    type_mat = mat[:type_moment+5]
+    country_mat = mat[-country_moment-5:]
+    number_mat = mat[type_moment:mat.shape[0] - country_moment]
+    print(show(type_mat))
+    print(show(country_mat))
+    types = []
+    for t in get_types_list():
+        for w in two_letters_in_russian(t):
+            types.append((ctc_prob(w, type_mat), t, w))
+    countries = []
+    for t in get_countries_list():
+        for w in two_letters_in_russian(t):
+            countries.append((ctc_prob(w, country_mat), t, w))
+    type = max(types, key=lambda x: x[0])
+    country = max(countries, key=lambda x: x[0])
+    print(type[2])
+    print(country[2])
     ns = numbers_norm(numbers_words)
-    cs = country_norm(country_words)
-    return ts, ns, cs
+    # numbers = [(ctc_prob(n, number_mat), n) for n in ns]
+    # number = max(numbers, key=lambda x: x[0])[1]
+
+    return type[1], ns[0], country[1]
 
 
 def str_to_inds(st):
@@ -162,50 +201,40 @@ def str_to_inds(st):
 
 
 def show(matr):
-    letters = get_letters()
-    print("".join([letters[np.argmax(p)] for p in matr if letters[np.argmax(p)] != '']))
+    letters = get_letters() + ["|"]
+    return ("".join([letters[np.argmax(p)] for p in matr if letters[np.argmax(p)] != '']))
 
 
-mat_ = np.load('test_mat.npy')
+# mat_ = np.load('test_mat.npy')
 
 
-def ctc_loss(matr, st):
-    inds = str_to_inds(st)
-    graph = tf.Graph()
-    mat1 = matr.reshape(-1, 1, matr.shape[1])
-    with graph.as_default():
-        labels = tf.sparse_placeholder(tf.int32, [1, len(st)])
-        inputs = tf.placeholder(tf.float32, [matr.shape[0], 1, matr.shape[1]])
-        sequence_length = tf.placeholder(tf.int32, [1])
-        # labels_ = tf.sparse.from_dense(labels)
-        # inputs_ = tf.convert_to_tensor(labels)
-        # sequence_length_ = tf.convert_to_tensor(sequence_length)
-        ctc_loss1 = tf.nn.ctc_loss(labels=labels, inputs=inputs, sequence_length=sequence_length)
-    labels_ = tf.constant(np.array(inds))
-    inputs_ = tf.constant(mat1)
-    sequence_length_ = tf.constant(np.array([len(st)]))
-    feed = {labels: labels_,
-            inputs: inputs_,
-            sequence_length: sequence_length_}
-    with tf.Session() as sess:
-        return sess.run([ctc_loss1], feed_dict=feed)
+def ctc_prob(s, mat, blank_index=-1):
+    s = str_to_inds(s)
+    mat = np.exp(mat)
+    l = len(s)
+    n = mat.shape[0]
+    Pnb = -np.ones(shape=[n, l])
+    Pb = -np.ones(shape=[n, l])
 
+    def step(i, j, t):
+        if i == j == -1:
+            return 1 if t == "nb" else 0
+        elif i == -1 or j == -1:
+            return 0
+        else:
+            if t == "b":
+                if Pb[i, j] == -1:
+                    value = (step(i - 1, j, "b") + step(i - 1, j, "nb")) * mat[i, blank_index]
+                    Pb[i, j] = value
+                return Pb[i, j]
+            elif t == 'nb':
+                if Pnb[i, j] == -1:
+                    if j == 0 or s[j] != s[j - 1]:
+                        value = (step(i - 1, j - 1, "b") + step(i - 1, j - 1, "nb") + step(i - 1, j, "nb")) * mat[
+                            i, s[j]]
+                    else:
+                        value = (step(i - 1, j - 1, "b") + step(i - 1, j, "nb")) * mat[i, s[j]]
+                    Pnb[i, j] = value
+                return Pnb[i, j]
 
-ctc_loss(mat_, 'а')
-# x = tf.placeholder(tf.float32, [2, 2])
-# y = tf.placeholder(tf.float32, [2, 3])
-# z = tf.linalg.matmul(x, y)
-# a = np.array([[0, 1], [1, 0]])
-# a = tf.convert_to_tensor(np.array([[0, 1], [1, 0]]))
-# b = tf.convert_to_tensor(np.array([[1, 2, 3], [5, 6, 7]]))
-# b = np.array([[1, 2, 3], [5, 6, 7]])
-# feed = {x: a, y: b}
-# with tf.Session() as sess:
-#     ans = sess.run([z], feed_dict=feed)
-# print(ans)
-
-# with
-# (
-#
-#
-#
+    return step(n - 1, l - 1, "b") + step(n - 1, l - 1, "nb")

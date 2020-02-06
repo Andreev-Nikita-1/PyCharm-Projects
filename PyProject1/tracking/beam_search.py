@@ -2,11 +2,8 @@ import numpy as np
 
 
 def get_letters():
-    letters = []
-    fi = open("letters.lst", 'r', encoding='utf8')
-    for line in fi.readlines():
-        letters.append(line[0])
-    return letters[:-1]
+    return [' ', '-', 'а', 'б', 'в', 'г', 'д', 'е', 'ж', 'з', 'и', 'й', 'к', 'л', 'м', 'н', 'о', 'п', 'р', 'с', 'т',
+            'у', 'ф', 'х', 'ц', 'ч', 'ш', 'щ', 'ъ', 'ы', 'ь', 'э', 'ю', 'я', 'ё']
 
 
 def beam_search(mat, alphabet=get_letters(), blank_index=-1, k=30, model=lambda x: 1):
@@ -39,14 +36,6 @@ def beam_search(mat, alphabet=get_letters(), blank_index=-1, k=30, model=lambda 
         Probs.append(next_probs)
 
     return sorted(Probs[-1].items(), key=lambda x: x[1]['b'] + x[1]['nb'], reverse=True)[0][0]
-
-
-
-
-
-
-
-
 
 #
 #
