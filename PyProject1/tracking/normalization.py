@@ -1,8 +1,10 @@
 import numpy as np
 import json
 import Levenshtein
+from sympy import besseli
+
 from tracking.beam_search import *
-import os
+import time
 
 
 def index_checking(numbers_str, service='ems'):
@@ -134,14 +136,30 @@ def country_norm(words):
     return list(np.unique(ans))
 
 
-def two_letters_in_russian(s):
-    A, B = s[0], s[1]
+def not_compatible_pairs():
+    wrongs = [("C", "с"), ("C", "эс"), ("C", "сэ"), ("I", "и")]
+    rights = [("E", "и"), ("I", "ай"), ("Y", "уай"), ("Y", "вай")]
+    return [(x[0], x[1], y[0], y[1]) for x in rights for y in wrongs] + [(x[0], x[1], y[0], y[1]) for
+                                                                         x in wrongs for y in rights]
+
+
+def two_letters_in_russian(AB):
+    A, B = AB[0], AB[1]
     with open("letters_to_eng.json", encoding='utf-8') as f:
         lte = json.loads(f.read())
     ans = []
-    for p1 in lte[A]:
-        for p2 in lte[B]:
-            ans.append(p1 + p2)
+    if A == B:
+        for p in lte[A + "_"]:
+            ans.append(p + " " + p)
+    else:
+        ncp = not_compatible_pairs()
+        for p1 in lte[A]:
+            for p2 in lte[B]:
+                ans.append(p1 + p2)
+        for p1 in lte[A + "_"]:
+            for p2 in lte[B + "_"]:
+                if not (A, p1, B, p2) in ncp:
+                    ans.append(p1 + " " + p2)
     return ans
 
 
@@ -152,47 +170,82 @@ def get_types_list():
 
 
 def get_countries_list():
-    return np.load("country_keys.npy")
+    return np.load("countries.npy")
+
+
+def probable_two_letters(AB_list, beam_word, mat):
+    if beam_word == "ру":
+        return ["RU"], ["RU"]
+    options = []
+    for p in AB_list:
+        for w in two_letters_in_russian(p):
+            # print(p, w, Levenshtein.distance(w, beam_word))
+            options.append((p, w, Levenshtein.distance(w, beam_word)))
+    # print("bb ww", beam_word)
+    best_options_levenshtein = sorted(options, key=lambda o: o[2])
+    best_options_levenshtein = [x for x in best_options_levenshtein if x[2] <= 3]
+    # print(best_options_levenshtein)
+    # b2 = [(x, ctc_prob(x[1], mat)) for x in best_options_levenshtein]
+    # print(b2)
+    best_options = np.array(
+        [x[0] for x in
+         sorted(best_options_levenshtein, key=lambda x: np.power(0.0001, x[2]) * ctc_prob(x[1], mat), reverse=True)])
+    _, idx = np.unique(best_options, return_index=True)
+    return list(best_options[sorted(idx)]), [x[0] for x in best_options_levenshtein]
 
 
 def ems_norm(mat):
+    start = time.time()
     beam = beam_search(mat)
+    beam_t = time.time() - start
+    start = time.time()
     with open("words_to_numbers.json", encoding='utf-8') as f:
         words_to_num = json.loads(f.read())
     words_nums = list(words_to_num.keys())
-    answer_words = beam.split()
-    wn_sorted = [sorted([(wn, Levenshtein.distance(wn, w)) for wn in words_nums], key=lambda p: p[1]) for w in
-                 answer_words]
-    ds = [x[0][1] <= 0 for x in wn_sorted]
-    first_num = ds.index(True)
-    last_num = ds[::-1].index(True)
-    numbers_words = answer_words[first_num:len(ds) - last_num]
-    type_words = answer_words[:first_num]
-    country_words = answer_words[len(ds) - last_num:]
-    type_moment = np.argmax([ctc_prob(" ".join(type_words), mat[:i]) for i in range(100)])
-    country_moment = np.argmax([ctc_prob(" ".join(type_words), mat[-i:]) for i in range(100)])
-    type_mat = mat[:type_moment+5]
-    country_mat = mat[-country_moment-5:]
-    number_mat = mat[type_moment:mat.shape[0] - country_moment]
-    print(show(type_mat))
-    print(show(country_mat))
-    types = []
-    for t in get_types_list():
-        for w in two_letters_in_russian(t):
-            types.append((ctc_prob(w, type_mat), t, w))
-    countries = []
-    for t in get_countries_list():
-        for w in two_letters_in_russian(t):
-            countries.append((ctc_prob(w, country_mat), t, w))
-    type = max(types, key=lambda x: x[0])
-    country = max(countries, key=lambda x: x[0])
-    print(type[2])
-    print(country[2])
-    ns = numbers_norm(numbers_words)
-    # numbers = [(ctc_prob(n, number_mat), n) for n in ns]
-    # number = max(numbers, key=lambda x: x[0])[1]
+    beam_words = beam.split()
+    closest_nums = [min([Levenshtein.distance(wn, w) for wn in words_nums]) for w in beam_words]
+    almost_num = [dist <= 1 / 5 * len(w) for dist, w in zip(closest_nums, beam_words)]
+    first_num_ind = almost_num.index(True)
+    last_num_ind = almost_num[::-1].index(True)
+    numbers_words = beam_words[first_num_ind: len(beam_words) - last_num_ind]
+    nums_inds_t = time.time() - start
+    start = time.time()
+    type_words = beam_words[:first_num_ind]
+    country_words = beam_words[-last_num_ind:]
+    first_num = numbers_words[0]
+    last_num = numbers_words[-1]
+    space_inds = [0] + [i for i in range(len(mat)) if (get_letters() + ["|"])[np.argmax(mat[i])] == " "]
+    space_pairs = list(zip(space_inds, space_inds[1:]))
+    tmoment, cmoment = 0, 0
+    for i, j in space_pairs:
+        if beam_search(mat[i:j]).strip() == first_num:
+            tmoment = i
+            break
+    for i, j in space_pairs[::-1]:
+        if beam_search(mat[i:j]).strip() == last_num:
+            cmoment = j+1
+            break
+    trash_t = time.time() - start
+    start = time.time()
+    tmat = mat[:tmoment]
+    cmat = mat[cmoment:]
 
-    return type[1], ns[0], country[1]
+    print(show(mat))
+    print(" ".join(type_words))
+    print(" ".join(country_words))
+    print(show(tmat))
+    print(show(cmat))
+
+    ts, ts1 = probable_two_letters(get_types_list(), " ".join(type_words), tmat)
+    cs, cs1 = probable_two_letters(get_countries_list(), " ".join(country_words), cmat)
+    prob_t = time.time() - start
+    start = time.time()
+    ns = numbers_norm(numbers_words)
+    prob_nums_t = time.time() - start
+
+    print("beam:", beam_t, "num inds:", nums_inds_t, "trash:", trash_t, "prob AB:", prob_t, "prob nums:", prob_nums_t)
+
+    return ts[:10], ns[:10], cs[:10], ts1[:10], cs1[:10]
 
 
 def str_to_inds(st):
