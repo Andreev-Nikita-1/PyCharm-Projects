@@ -108,8 +108,8 @@ cr = ["CA007433791SK(1).npy", "CA007433791SK.npy", "CA032156295RU.npy", "CA46068
 
 
 def control():
-    folder = 'data/control_set'
-    # folder = 'data/Ems_toloka_all'
+    # folder = 'data/control_set'
+    folder = 'data/Ems_toloka_all'
     files = os.listdir(folder)
     # np.shuffle(files)
     out = open("data/control_out.txt", "w")
@@ -120,25 +120,13 @@ def control():
     for i, file in enumerate(files):
         # if file in correct:
         #     continue
-        if file != "CG103316599LT(1).npy":
-            continue
-        else:
-            mat = mat = np.load(folder + '/' + file)[-57:]
-            print(show(mat))
-            bs = beam_search(mat)
-            print(bs, ctc_prob(bs, mat))
-            print("эл т", ctc_prob("эл т", mat))
-            op = []
-            for t in get_types_list():
-                for o in two_letters_in_russian(t):
-                    op += [(t, o, ctc_prob(o, mat))]
-            op = sorted(op, key=lambda x: x[2], reverse=True)
-            print(op)
-            break
+        # if file != "RG973774831CN.npy":
+        #     continue
+        "7ffd80a7-9656-4392-afda-fd7ab6b5b838.npy"
         print()
         print(i, "/", len(files), "    ", tr, tr1)
-        real = file[:13].upper()
-        # real = keys[file[:-4]]
+        # real = file[:13].upper()
+        real = keys[file[:-4]]
         print(file, real)
         nb = [int(s) for s in real[2:11]]
         if not control_number_ems(nb[:-1]) == nb[-1]:
@@ -190,4 +178,5 @@ def control():
                 print('c', end=' ')
             print("wrong   ", file, "     ", ts, ns, cs)
         print(tr, tr / (i + 1), tr1, tr1 / (i + 1), "  ", trl, trl / (i + 1), trl1, trl1 / (i + 1))
-control()
+
+

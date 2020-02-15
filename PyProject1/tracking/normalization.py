@@ -183,13 +183,11 @@ def probable_two_letters(AB_list, beam_word, mat):
             options.append((p, w, Levenshtein.distance(w, beam_word)))
     # print("bb ww", beam_word)
     best_options_levenshtein = sorted(options, key=lambda o: o[2])
-    best_options_levenshtein = [x for x in best_options_levenshtein if x[2] <= 3]
-    # print(best_options_levenshtein)
-    # b2 = [(x, ctc_prob(x[1], mat)) for x in best_options_levenshtein]
-    # print(b2)
+    min_dist = best_options_levenshtein[0][2]
+    best_options_levenshtein = [x for x in best_options_levenshtein if x[2] <= 2 + min_dist]
     best_options = np.array(
         [x[0] for x in
-         sorted(best_options_levenshtein, key=lambda x: np.power(0.0001, x[2]) * ctc_prob(x[1], mat), reverse=True)])
+         sorted(best_options_levenshtein, key=lambda x: np.power(0, x[2]) * ctc_prob(x[1], mat), reverse=True)])
     _, idx = np.unique(best_options, return_index=True)
     return list(best_options[sorted(idx)]), [x[0] for x in best_options_levenshtein]
 
@@ -223,7 +221,7 @@ def ems_norm(mat):
             break
     for i, j in space_pairs[::-1]:
         if beam_search(mat[i:j]).strip() == last_num:
-            cmoment = j+1
+            cmoment = j + 1
             break
     trash_t = time.time() - start
     start = time.time()
@@ -271,9 +269,11 @@ def ctc_prob(s, mat, blank_index=-1):
 
     def step(i, j, t):
         if i == j == -1:
-            return 1 if t == "nb" else 0
-        elif i == -1 or j == -1:
+            return 1 if t == "b" else 0
+        elif i == -1:
             return 0
+        elif j == -1:
+            return mat[i, blank_index] * step(i - 1, j, "b") if t == "b" else 0
         else:
             if t == "b":
                 if Pb[i, j] == -1:
