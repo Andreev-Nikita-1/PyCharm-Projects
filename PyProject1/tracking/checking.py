@@ -87,29 +87,26 @@ def ems():
     print(cort, corn, corc, cor, ' / ', all)
 
 
-cr = ["CA007433791SK(1).npy", "CA007433791SK.npy", "CA032156295RU.npy", "CA460681341AT(1).npy", "CA460681341AT.npy",
-      "CB001324705RU.npy", "CC001848257AM(1).npy", "CC001848257AM.npy", "CC015308345ES(1).npy", "CC060510876IL.npy",
-      "CD389708309JP.npy", "CD532874587NL(1).npy", "CD532874587NL.npy", "CF190999356DE(1).npy", "CG002327031IS(1).npy",
-      "CG002327031IS(2).npy", "CG103316599LT.npy", "CG970369392NL.npy", "CH108815211AU.npy", "CJ003862203RU.npy",
-      "CK068015119DE.npy", "CL001191142RU.npy", "CL056436176JP.npy", "CO821284605DE(1).npy", "CV033885375CZ(1).npy",
-      "EE005074800RU.npy", "EE790557156TW.npy", "EF014887886RU(1).npy", "EF014887886RU(2).npy", "EF014887886RU.npy",
-      "EW001430412IT.npy", "LC004044545CN.npy", "LC004077464CN.npy", "LL136789702CN(2).npy", "LL136789702CN.npy",
-      "LO122677706CN.npy", "LS824805509CH.npy", "RA010477280JP.npy", "RA019477640RU.npy", "RA253321807FI.npy",
-      "RA259640517FI.npy", "RA612153932UA.npy", "RB012363705RU.npy", "RB601208140SG(1).npy", "RB601208140SG.npy",
-      "RB791356155SG(2).npy", "RB791356155SG.npy", "RC092107717IT(1).npy", "RC092107717IT.npy", "RD009172569HK.npy",
-      "RD213349651SE.npy", "RD331395160IN.npy", "RE684604472GR.npy", "RF020723158UA.npy", "RG973774831CN.npy",
-      "RO260964943RU.npy", "RP677676920CN.npy", "RP731131053CN.npy", "RP900199158SG.npy", "RQ004050118RU.npy",
-      "RQ020905632CY.npy", "RR000396224GE.npy", "RR061424096BY.npy", "RR170116017TH.npy", "RR321763837PL.npy",
-      "RU480548222HK(2).npy", "RU480548222HK.npy", "RV168615668CN.npy", "RV199755489CN(2).npy", "RV199755489CN.npy",
-      "RX422387137CN.npy", "RY009826924HK(1).npy", "RY009826924HK(2).npy", "RY009826924HK.npy", "RZ022677306LV.npy",
-      "UA789445529HK.npy", "UR521770422CN.npy", "VI629577860CN.npy", "ZA502560528LV(2).npy", "ZA502560528LV.npy",
-      "ZA523577679LV.npy", "za669962194hk(2).npy", "za669962194hk.npy", "ZB020503497HK.npy", "ZB021478900HK(1).npy",
-      "ZB021478900HK(2).npy", "ZB021478900HK.npy", "ZC008498768HK.npy"]
+cr = ["CA032156295RU.npy", "CA460681341AT.npy", "CC001848257AM.npy", "CC015274068ES.npy", "CC015308345IC.npy",
+      "CC066204605IL.npy", "CD389708309JP.npy", "CD532874587NL(1).npy", "CD532874587NL.npy", "CE384308975BE(1).npy",
+      "CE384308975BE.npy", "CF190999356DE(1).npy", "CG002327031IS(2).npy", "CG103316599LT(1).npy", "CG103316599LT.npy",
+      "CJ003862203RU.npy", "CK068015119DE.npy", "CL001191142RU.npy", "CO821284605DE(1).npy", "CO821284605DE.npy",
+      "CV033885375CZ(1).npy", "CX427163343US.npy", "CY114763116US(1).npy", "EE005074800RU.npy", "EE790557156TW(1).npy",
+      "EF014887886RU(2).npy", "EF014887886RU.npy", "EH004852600US.npy", "EP056592600RU.npy", "EP073906229RU.npy",
+      "EW001430412IT(1).npy", "EW001430412IT.npy", "LO122677706CN.npy", "LZ432379988US(1).npy", "LZ432379988US.npy",
+      "LZ497696959IC(1).npy", "LZ497696959IC.npy", "RA010477280JP.npy", "RA019477640RU.npy", "RA253321807FI.npy",
+      "RA612153932UA.npy", "RB012363705RU.npy", "RC092107717IT(1).npy", "RC727913178RG.npy", "RD009172569HK.npy",
+      "RD213349651SE.npy", "RD331395160IN.npy", "RE540161296UA.npy", "RE684604472GR.npy", "RF020723158UA.npy",
+      "RP019120314NL.npy", "RQ004050118RU.npy", "RQ020905632CY.npy", "RR000396224GE.npy", "RR061424096BY.npy",
+      "RR321763837PL.npy", "RU480548222HK(2).npy", "RU480548222HK.npy", "RV168615668CN.npy", "RV199755489CN(2).npy",
+      "RV199755489CN.npy", "RX422387137CN.npy", "RY009826924HK(1).npy", "RY009826924HK(2).npy", "RY009826924HK.npy",
+      "RZ022677306LV.npy", "UA789445529HK.npy", "UR521770422CN.npy", "ZA502560528LV(2).npy", "ZA523577679LV.npy",
+      "za669962194hk.npy", "ZB020503497HK.npy", "ZB021478900HK(1).npy", "ZB021478900HK.npy", "ZC008498768HK.npy"]
 
 
 def control():
-    # folder = 'data/control_set'
-    folder = 'data/Ems_toloka_all'
+    folder = 'data/control_set'
+    # folder = 'data/Ems_toloka_all'
     files = os.listdir(folder)
     # np.shuffle(files)
     out = open("data/control_out.txt", "w")
@@ -117,16 +114,18 @@ def control():
         keys = json.loads(d.read())
 
     tr, tr1, trl, trl1 = 0, 0, 0, 0
+    tr_1, tr_2, tr_3, tr_4 = 0, 0, 0, 0
     for i, file in enumerate(files):
-        # if file in correct:
-        #     continue
+        if file in cr:
+            continue
         # if file != "RG973774831CN.npy":
         #     continue
-        "7ffd80a7-9656-4392-afda-fd7ab6b5b838.npy"
+        # "7ffd80a7-9656-4392-afda-fd7ab6b5b838.npy"
         print()
-        print(i, "/", len(files), "    ", tr, tr1)
-        # real = file[:13].upper()
-        real = keys[file[:-4]]
+        # print(i, "/", len(files), "    ", tr, tr1)
+        # print()
+        real = file[:13].upper()
+        # real = keys[file[:-4]]
         print(file, real)
         nb = [int(s) for s in real[2:11]]
         if not control_number_ems(nb[:-1]) == nb[-1]:
@@ -135,11 +134,11 @@ def control():
             continue
         mat = np.load(folder + '/' + file)
         ts, ns, cs, ts1, cs1 = ems_norm(mat)
-        print(ts, ns, cs)
+        # print(ts, ns, cs)
         ans = real[:2] in ts and real[2:11] in ns and real[-2:] in cs
         if ans:
-            out.write('\"' + file + '\"' + ',')
-            print(file, "correct")
+            # out.write('\"' + file + '\"' + ',')
+            print("---correct---")
             i1 = ts.index(real[:2])
             i2 = ns.index(real[2:11])
             i3 = cs.index(real[-2:])
@@ -147,7 +146,17 @@ def control():
             tr += 1
             if i1 == i2 == i3 == 0:
                 tr1 += 1
-                print("super correct!")
+                out.write('\"' + file + '\"' + ',')
+                print(r"\\\super correct!///")
+            if i1 <= 1 and i3 <= 1:
+                tr_1 += 1
+            if i1 <= 2 and i3 <= 2:
+                tr_2 += 1
+            if i1 <= 3 and i3 <= 3:
+                tr_3 += 1
+            if i1 <= 4 and i3 <= 4:
+                tr_4 += 1
+
         else:
             if real[:2] not in ts:
                 print('t', end=' ')
@@ -155,28 +164,35 @@ def control():
                 print('n', end=' ')
             if real[-2:] not in cs:
                 print('c', end=' ')
-            print("wrong   ", file, "     ", ts, ns, cs)
+            print("#$&#?@#*WRONG*#?@$#%$#  ", file, "     ", ts, ns, cs)
         ans = real[:2] in ts1 and real[2:11] in ns and real[-2:] in cs1
         print("---------------------------------------------------")
-        if ans:
-            out.write('\"' + file + '\"' + ',')
-            print(file, "correct")
-            i1 = ts1.index(real[:2])
-            i2 = ns.index(real[2:11])
-            i3 = cs1.index(real[-2:])
-            print(i1, ts1[:i1 + 1], "  ", i2, ns[:i2 + 1], "  ", i3, cs1[:i3 + 1])
-            trl += 1
-            if i1 == i2 == i3 == 0:
-                trl1 += 1
-                print("super correct!")
-        else:
-            if real[:2] not in ts:
-                print('t', end=' ')
-            if real[2:11] not in ns:
-                print('n', end=' ')
-            if real[-2:] not in cs:
-                print('c', end=' ')
-            print("wrong   ", file, "     ", ts, ns, cs)
-        print(tr, tr / (i + 1), tr1, tr1 / (i + 1), "  ", trl, trl / (i + 1), trl1, trl1 / (i + 1))
+        # if ans:
+        #     out.write('\"' + file + '\"' + ',')
+        #     print(file, "correct")
+        #     i1 = ts1.index(real[:2])
+        #     i2 = ns.index(real[2:11])
+        #     i3 = cs1.index(real[-2:])
+        #     print(i1, ts1[:i1 + 1], "  ", i2, ns[:i2 + 1], "  ", i3, cs1[:i3 + 1])
+        #     trl += 1
+        #     if i1 == i2 == i3 == 0:
+        #         trl1 += 1
+        #         print("super correct!")
+        # else:
+        #     if real[:2] not in ts:
+        #         print('t', end=' ')
+        #     if real[2:11] not in ns:
+        #         print('n', end=' ')
+        #     if real[-2:] not in cs:
+        #         print('c', end=' ')
+        #     print("wrong   ", file, "     ", ts1, ns, cs1)
+        print(i, "/", len(files), "    ", end="")
+        # print(tr, tr / (i + 1), tr1, tr1 / (i + 1), "  ", trl, trl / (i + 1), trl1, trl1 / (i + 1))
+        print("cor={}   {}".format(tr, tr / (i + 1)), "     sup cor={}   {}".format(tr1, tr1 / (i + 1)))
+        print("cor1={}   {}".format(tr_1, tr_1 / (i + 1)))
+        print("cor2={}   {}".format(tr_2, tr_2 / (i + 1)))
+        print("cor3={}   {}".format(tr_3, tr_3 / (i + 1)))
+        print("cor4={}   {}".format(tr_4, tr_4 / (i + 1)))
 
 
+control()

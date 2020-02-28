@@ -184,10 +184,11 @@ def probable_two_letters(AB_list, beam_word, mat):
     # print("bb ww", beam_word)
     best_options_levenshtein = sorted(options, key=lambda o: o[2])
     min_dist = best_options_levenshtein[0][2]
-    best_options_levenshtein = [x for x in best_options_levenshtein if x[2] <= 2 + min_dist]
+    best_options_levenshtein = [x for x in best_options_levenshtein if x[2] <= 2 + min_dist][:100]
     best_options = np.array(
         [x[0] for x in
-         sorted(best_options_levenshtein, key=lambda x: np.power(0, x[2]) * ctc_prob(x[1], mat), reverse=True)])
+         # sorted(best_options_levenshtein, key=lambda x: np.power(0, x[2]) * ctc_prob(x[1], mat), reverse=True)])
+         sorted(best_options_levenshtein, key=lambda x: ctc_prob(x[1], mat), reverse=True)])
     _, idx = np.unique(best_options, return_index=True)
     return list(best_options[sorted(idx)]), [x[0] for x in best_options_levenshtein]
 
@@ -212,7 +213,8 @@ def ems_norm(mat):
     country_words = beam_words[-last_num_ind:]
     first_num = numbers_words[0]
     last_num = numbers_words[-1]
-    space_inds = [0] + [i for i in range(len(mat)) if (get_letters() + ["|"])[np.argmax(mat[i])] == " "]
+    space_inds = [0] + [i for i in range(len(mat)) if (get_letters() + ["|"])[np.argmax(mat[i])] == " "] + [
+        len(mat) - 1]
     space_pairs = list(zip(space_inds, space_inds[1:]))
     tmoment, cmoment = 0, 0
     for i, j in space_pairs:
@@ -220,6 +222,9 @@ def ems_norm(mat):
             tmoment = i
             break
     for i, j in space_pairs[::-1]:
+        # print(last_num)
+        # x = beam_search(mat[i:j]).strip()
+        # print(x)
         if beam_search(mat[i:j]).strip() == last_num:
             cmoment = j + 1
             break
@@ -228,11 +233,12 @@ def ems_norm(mat):
     tmat = mat[:tmoment]
     cmat = mat[cmoment:]
 
-    print(show(mat))
+    # print(show(mat))
     print(" ".join(type_words))
+    print(" ".join(numbers_words))
     print(" ".join(country_words))
-    print(show(tmat))
-    print(show(cmat))
+    # print(show(tmat))
+    # print(show(cmat))
 
     ts, ts1 = probable_two_letters(get_types_list(), " ".join(type_words), tmat)
     cs, cs1 = probable_two_letters(get_countries_list(), " ".join(country_words), cmat)
@@ -243,7 +249,7 @@ def ems_norm(mat):
 
     print("beam:", beam_t, "num inds:", nums_inds_t, "trash:", trash_t, "prob AB:", prob_t, "prob nums:", prob_nums_t)
 
-    return ts[:10], ns[:10], cs[:10], ts1[:10], cs1[:10]
+    return ts[:10], ns[:1], cs[:10], ts1[:10], cs1[:10]
 
 
 def str_to_inds(st):
