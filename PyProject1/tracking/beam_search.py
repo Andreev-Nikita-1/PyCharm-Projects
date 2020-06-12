@@ -1,17 +1,14 @@
 import numpy as np
 
-
-def get_letters():
-    return [' ', '-', 'а', 'б', 'в', 'г', 'д', 'е', 'ж', 'з', 'и', 'й', 'к', 'л', 'м', 'н', 'о', 'п', 'р', 'с', 'т',
-            'у', 'ф', 'х', 'ц', 'ч', 'ш', 'щ', 'ъ', 'ы', 'ь', 'э', 'ю', 'я', 'ё']
+default_alphabet = [' ', '-', 'а', 'б', 'в', 'г', 'д', 'е', 'ж', 'з', 'и', 'й', 'к', 'л', 'м', 'н', 'о', 'п', 'р', 'с',
+                    'т', 'у', 'ф', 'х', 'ц', 'ч', 'ш', 'щ', 'ъ', 'ы', 'ь', 'э', 'ю', 'я', 'ё']
 
 
-def beam_search(mat, alphabet=get_letters(), blank_index=-1, k=30, model=lambda x: 1):
+def beam_search(mat: np.array, alphabet: list = default_alphabet, blank_index=-1, k=30, model=lambda x: 1):
     T = mat.shape[0]
     mat = np.exp(mat)
     Probs = [{'': {'b': 1, 'nb': 0}}]
     # [{ beam: {'b': Pb[t], 'nb': Pnb[t]} } for t]
-
     for t in range(1, T + 1):
         next_probs = {beam + letter: {'b': 0, 'nb': 0} for beam in Probs[t - 1].keys() for letter in
                       alphabet + ['']}
@@ -36,18 +33,3 @@ def beam_search(mat, alphabet=get_letters(), blank_index=-1, k=30, model=lambda 
         Probs.append(next_probs)
 
     return sorted(Probs[-1].items(), key=lambda x: x[1]['b'] + x[1]['nb'], reverse=True)[0][0]
-
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
