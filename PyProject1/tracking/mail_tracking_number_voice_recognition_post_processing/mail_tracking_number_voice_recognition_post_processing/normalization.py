@@ -1,11 +1,11 @@
 import json
 import Levenshtein
 from .beam_search import *
-from .tracking_number_recognition import TrackingNumberRecognizer
+from .tracking_number_recognition import TrackingNumberRecognizer, res_dir
 
-letters_russian_pronunciation = json.load(open("resources/letters_russian_pronunciation.json", encoding='utf-8'))
-words_to_numbers = json.load(open("resources/words_to_numbers.json", encoding='utf-8'))
-post_indices = json.load(open("resources/post_indices.json", 'r'))
+letters_russian_pronunciation = json.load(open(res_dir + "/letters_russian_pronunciation.json", encoding='utf-8'))
+words_to_numbers = json.load(open(res_dir + "/words_to_numbers.json", encoding='utf-8'))
+post_indices = json.load(open(res_dir + "/post_indices.json", 'r'))
 
 
 class Normalization:
@@ -85,7 +85,7 @@ class Normalization:
         numbers_words = [p[0] for p in nearest_numbers if p[1] <= 1]
         numbers = [words_to_numbers[nw] for nw in numbers_words]
 
-        reduced = self.__reducing(numbers, expected_length=9 if self.recognizer.service == 'im' else 14)
+        reduced = self.__reducing(numbers, expected_length=9 if self.recognizer.service == 'International mail' else 14)
 
         # checking corectness
         reduced = [r for r in reduced if self.__control_number_checking(r) and self.__index_checking(r)]
@@ -186,7 +186,7 @@ class Normalization:
         options = [x for x in options if x[2] <= 2 + min_dist][:100]
 
         best = [x[0] for x in options]
-        ctc_probs = np.array([ctc_prob(x[1], mat) for x in options])
+        ctc_probs = np.array([ctc_prob(x[1], mat, self.recognizer.alphabet) for x in options])
         ctc_probs = ctc_probs / (ctc_probs.sum() + 0.1)
 
         # choosing best two letters in case of value ctc_prob * (1 - error_prob) + prior_prob * error_prob
@@ -244,7 +244,7 @@ class Normalization:
         """
         Chooses most probable tracking numbers, gathering decoded three parts in terms of "International mail" tracking number format
         """
-        pairs = [(t, c, t_prob * c_prob) for (t, t_prob) in ts for (c, c_prob) in cs]
+        pairs = [(t, c, float(t_prob) * float(c_prob)) for (t, t_prob) in ts for (c, c_prob) in cs]
         pairs.sort(key=lambda x: x[2], reverse=True)
         return [t + ns[0] + c for (t, c, _) in pairs]
 

@@ -1,7 +1,9 @@
 import numpy as np
 import json
+import pkg_resources
 from .beam_search import beam_search
-from .normalization import Normalization
+
+res_dir = pkg_resources.resource_filename("mail_tracking_number_voice_recognition_post_processing", "resources")
 
 
 class TrackingNumberRecognizer:
@@ -12,8 +14,8 @@ class TrackingNumberRecognizer:
     alphabet = [' ', '-', 'а', 'б', 'в', 'г', 'д', 'е', 'ж', 'з', 'и', 'й', 'к', 'л', 'м', 'н', 'о', 'п', 'р', 'с',
                 'т', 'у', 'ф', 'х', 'ц', 'ч', 'ш', 'щ', 'ъ', 'ы', 'ь', 'э', 'ю', 'я', 'ё']
     error_prob: float
-    countries_prior = json.load(open("resources/countries_prior.json", "r"))
-    types_prior = json.load(open("resources/types_prior.json", "r"))
+    countries_prior = json.load(open(res_dir + "/countries_prior.json", "r"))
+    types_prior = json.load(open(res_dir + "/types_prior.json", "r"))
 
     def __init__(self,
                  service: str,
@@ -28,9 +30,9 @@ class TrackingNumberRecognizer:
 
         Format example for ``Russian Post``: ``1421171600738``
 
-        Matrix first dimension corresponds to a letter, last index has to correspond to *blank* (see CTC).
+        Matrix first dimension corresponds to time moment.
 
-        Matrix second dimension corresponds to time moment.
+        Matrix second dimension corresponds to a letter, last index has to correspond to *blank* (see CTC).
 
         Matrix value is the probability of pronunciation letter at the moment.
 
@@ -56,3 +58,6 @@ class TrackingNumberRecognizer:
         """
         string = beam_search(matrix, self.alphabet)
         return Normalization(self).norm(matrix, string)
+
+
+from .normalization import Normalization
