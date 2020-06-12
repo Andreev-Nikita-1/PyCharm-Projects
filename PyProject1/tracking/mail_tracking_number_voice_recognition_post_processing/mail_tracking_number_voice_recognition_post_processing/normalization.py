@@ -3,9 +3,9 @@ import Levenshtein
 from .beam_search import *
 from .tracking_number_recognition import TrackingNumberRecognizer
 
-letters_russian_pronunciation = json.load(open("letters_russian_pronunciation.json", encoding='utf-8'))
-words_to_numbers = json.load(open("words_to_numbers.json.json", encoding='utf-8'))
-post_indices = json.load(open("post_indices.json", 'r'))
+letters_russian_pronunciation = json.load(open("resources/letters_russian_pronunciation.json", encoding='utf-8'))
+words_to_numbers = json.load(open("resources/words_to_numbers.json", encoding='utf-8'))
+post_indices = json.load(open("resources/post_indices.json", 'r'))
 
 
 class Normalization:

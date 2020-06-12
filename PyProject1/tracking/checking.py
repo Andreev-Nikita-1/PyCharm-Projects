@@ -1,5 +1,6 @@
 import os
-
+from tracking.mail_tracking_number_voice_recognition_post_processing.mail_tracking_number_voice_recognition_post_processing.tracking_number_recognition import \
+    TrackingNumberRecognizer
 from numpy.distutils.log import good
 
 from tracking.normalization import *
@@ -10,6 +11,25 @@ ws_c = np.zeros(254)
 ws_t = np.zeros(254)
 ts_c = np.zeros(7)
 ts_t = np.zeros(7)
+
+
+def rtest_lib():
+    rec = TrackingNumberRecognizer("International mail")
+    dir = "data/control_set"
+    cor = {0: 0, 1: 0, 2: 0}
+    print()
+    print()
+    print("test---------------------------------------------------------------")
+    all = len(os.listdir(dir))
+    for i, file in enumerate(os.listdir(dir)):
+        real = file[:13].upper()
+        ans = rec.convert(np.load(dir + "/" + file))
+        if real in ans:
+            print((1 + ans.index(real)) * "*")
+        else:
+            print("XXXXXXXXXXXXXXXXXX")
+        if i % 10 == 0:
+            print((i + 1) + " / " + all)
 
 
 # def get_country_prior():
@@ -262,6 +282,7 @@ def ebtest():
 
 
 x = np.load("ebar.npy")
+
 
 def pre_search():
     dir1 = "data/EMS_toloka_all"
